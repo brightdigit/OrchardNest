@@ -1,18 +1,18 @@
+import Foundation
 
+public struct Site: Codable {
+  public let title: String
+  public let author: String
+  public let site_url: URL
+  public let feed_url: URL
+  public let twitter_url: URL?
 
-public struct Site : Codable {
-  public let title : String
-  public let author : String
-  public let site_url : URL
-  public let feed_url : URL
-  public let twitter_url : URL?
-  
-  public init (
-  title : String,
-author : String,
-site_url : URL,
-feed_url : URL,
-twitter_url : URL?
+  public init(
+    title: String,
+    author: String,
+    site_url: URL,
+    feed_url: URL,
+    twitter_url: URL?
   ) {
     self.title = title
     self.author = author
