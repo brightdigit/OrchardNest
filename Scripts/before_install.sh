@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ $TRAVIS_OS_NAME = 'osx' ]]; then
-  eval {}
+  :
 elif [[ $TRAVIS_OS_NAME = 'linux' ]]; then
   RELEASE_DOT=$(lsb_release -sr)
   RELEASE_NUM=${RELEASE_DOT//[-._]/}
