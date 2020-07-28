@@ -1,6 +1,7 @@
 import Foundation
 
 public struct Site: Codable {
+  // swiftlint:disable identifier_name
   public let title: String
   public let author: String
   public let site_url: URL
@@ -20,4 +21,6 @@ public struct Site: Codable {
     self.feed_url = feed_url
     self.twitter_url = twitter_url
   }
+
+  // swiftlint:enable identifier_name
 }

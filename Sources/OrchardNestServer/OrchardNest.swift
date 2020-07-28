@@ -1,4 +1,3 @@
-
 import Fluent
 import FluentPostgresDriver
 import Vapor
@@ -65,8 +64,8 @@ public final class Configurator: ConfiguratorProtocol {
 //    }
 
     //   services.register(wss, as: WebSocketServer.self)
-    app.get() { (request) in
-      return "Hello"
+    app.get { _ in
+      "Hello"
     }
   }
 }

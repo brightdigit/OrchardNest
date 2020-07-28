@@ -21,6 +21,7 @@ public struct Channel: Codable {
   public let items: [Item]
   public let itemCount: Int?
 
+  // swiftlint:disable:next function_body_length
   public init(language: String, category: String, site: Site) throws {
     let parser = FeedParser(URL: site.feed_url)
     let feed = try parser.parse().get()
@@ -43,15 +44,27 @@ public struct Channel: Codable {
       items = json.items?.compactMap { (item) -> Item? in
         let siteUrl: URL = site.site_url
 
-        guard let title = item.title, let summary = item.summary, let url = item.externalUrl.flatMap(URL.init(string:)) ?? item.url.flatMap(URL.init(string:)), let id = item.id ?? item.url ?? item.externalUrl else {
+        guard let title = item.title,
+          let summary = item.summary,
+          let url = item.externalUrl.flatMap(URL.init(string:)) ?? item.url.flatMap(URL.init(string:)),
+          let id = item.id ?? item.url ?? item.externalUrl else {
           return nil
         }
-        // let ytId: String
-        // let itId = item.media.
         let content = item.contentHtml ?? item.contentText
         let image = item.image.flatMap(URL.init(string:)) ?? item.bannerImage.flatMap(URL.init(string:))
         let published = item.datePublished ?? item.dateModified ?? Date()
-        return Item(siteUrl: siteUrl, id: id, title: title, summary: summary, content: content, url: url, image: image, ytId: nil, audio: nil, published: published)
+        return Item(
+          siteUrl: siteUrl,
+          id: id,
+          title: title,
+          summary: summary,
+          content: content,
+          url: url,
+          image: image,
+          ytId: nil,
+          audio: nil,
+          published: published
+        )
       } ?? [Item]()
 
     case let .rss(rss):
@@ -72,16 +85,36 @@ public struct Channel: Codable {
       items = rss.items?.compactMap { (item) -> Item? in
         let siteUrl: URL = site.site_url
 
-        guard let title = item.title, let summary = item.description ?? item.content?.contentEncoded ?? item.media?.mediaDescription?.value, let id = item.guid?.value ?? item.link, let url = item.link.flatMap(URL.init(string:)) else {
+        guard let title = item.title,
+          let summary = item.description ??
+          item.content?.contentEncoded ??
+          item.media?.mediaDescription?.value,
+          let id = item.guid?.value ?? item.link,
+          let url = item.link.flatMap(URL.init(string:)) else {
           return nil
         }
         let enclosure = item.enclosure.flatMap(Enclosure.init)
         let content = item.content?.contentEncoded
-        let image = item.iTunes?.iTunesImage?.attributes?.href.flatMap(URL.init(string:)) ?? enclosure?.imageURL ?? item.media?.mediaThumbnails?.compactMap { $0.attributes?.url.flatMap(URL.init(string:)) }.first
+        let image = item.iTunes?.iTunesImage?.attributes?.href.flatMap(URL.init(string:)) ??
+          enclosure?.imageURL ??
+          item.media?.mediaThumbnails?.compactMap {
+            $0.attributes?.url.flatMap(URL.init(string:))
+          }.first
         // let ytId: String
         // let itId = item.media.
         let published = item.pubDate ?? Date()
-        return Item(siteUrl: siteUrl, id: id, title: title, summary: summary, content: content, url: url, image: image, ytId: nil, audio: enclosure?.audioURL, published: published)
+        return Item(
+          siteUrl: siteUrl,
+          id: id,
+          title: title,
+          summary: summary,
+          content: content,
+          url: url,
+          image: image,
+          ytId: nil,
+          audio: enclosure?.audioURL,
+          published: published
+        )
       } ?? [Item]()
     case let .atom(atom):
 
@@ -113,7 +146,9 @@ public struct Channel: Codable {
         guard let title = entry.title else {
           return nil
         }
-        guard let summary = entry.summary?.value ?? entry.content?.value ?? entry.media?.mediaGroup?.mediaDescription?.value else {
+        guard let summary = entry.summary?.value ??
+          entry.content?.value ??
+          entry.media?.mediaGroup?.mediaDescription?.value else {
           return nil
         }
         guard let url: URL = entry.links?.first?.attributes?.href.flatMap(URL.init(string:)) else {
@@ -128,7 +163,18 @@ public struct Channel: Codable {
         } else {
           ytId = nil
         }
-        return Item(siteUrl: siteUrl, id: id, title: title, summary: summary, content: entry.content?.value, url: url, image: media?.compactMap { $0.imageURL }.first, ytId: ytId, audio: media?.compactMap { $0.audioURL }.first, published: entry.published ?? Date())
+        return Item(
+          siteUrl: siteUrl,
+          id: id,
+          title: title,
+          summary: summary,
+          content: entry.content?.value,
+          url: url,
+          image: media?.compactMap { $0.imageURL }.first,
+          ytId: ytId,
+          audio: media?.compactMap { $0.audioURL }.first,
+          published: entry.published ?? Date()
+        )
       } ?? [Item]()
     }
   }
