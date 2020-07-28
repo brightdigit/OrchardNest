@@ -6,7 +6,7 @@ jobs:
   build:
     env:
       PACKAGE_NAME: OrchardNest
-      XCODE_PATH: /Applications/Xcode_11.5.app
+      XCODE_PATH: /Applications/Xcode_12_beta.app
 
     runs-on: macos-latest
     if: "!contains(github.event.head_commit.message, 'ci skip')"

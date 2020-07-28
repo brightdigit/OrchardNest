@@ -6,7 +6,7 @@ jobs:
   build:
     env:
       PACKAGE_NAME: OrchardNest
-      SWIFT_VER: 5.2.4
+      SWIFT_VER: 5.3
 
     runs-on: ${{ matrix.runs-on }}
     if: "!contains(github.event.head_commit.message, 'ci skip')"

@@ -8,7 +8,7 @@ elif [[ $TRAVIS_OS_NAME = 'linux' ]]; then
   RELEASE_NUM=${RELEASE_DOT//[-._]/}
   RELEASE_NAME=$(lsb_release -sc)
   [[ $TRAVIS_CPU_ARCH = "arm64" ]] && ARCH_PREFIX="aarch64" || ARCH_PREFIX="x86_64"
-  export PATH="${PWD}/swift-${SWIFT_VER}-RELEASE-ubuntu${RELEASE_DOT}/usr/bin:$PATH"
+  export PATH="${PWD}/swift-${SWIFT_VER}-DEVELOPMENT-SNAPSHOT-2020-07-27-a-ubuntu${RELEASE_DOT}/usr/bin:$PATH"
 fi
 
 ARCH=${TRAVIS_CPU_ARCH:-amd64}
