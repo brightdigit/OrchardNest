@@ -6,14 +6,10 @@ final class Category: Model {
 
   init() {}
 
-  init(slug: String, title: String) {
+  init(slug: String) {
     id = slug
-    self.title = title
   }
 
   @ID(custom: "slug", generatedBy: .user)
   var id: String?
-
-  @Field(key: "title")
-  var title: String
 }

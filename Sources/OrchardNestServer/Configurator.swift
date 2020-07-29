@@ -75,13 +75,15 @@ struct RefreshCommand: Command {
     let sites = try reader.sites(fromURL: url)
 
     var languages = [String: String]()
-    var categories = [String: String]()
+    var categories = [String: [String: String]]()
     var organizedSites = [OrganizedSite]()
 
     for lang in sites {
       languages[lang.language] = lang.title
       for category in lang.categories {
-        categories[category.slug] = category.title
+        var categoryMap = categories[category.slug] ?? [String: String]()
+        categoryMap[lang.language] = category.title
+        categories[category.slug] = categoryMap
         organizedSites.append(contentsOf: category.sites.map {
           (lang.language, category.slug, $0)
         })
@@ -108,30 +110,61 @@ struct RefreshCommand: Command {
       Category.find(pair.key, on: database).flatMap { (langOpt) -> EventLoopFuture<Category> in
         let category: Category
         if let actual = langOpt {
-          actual.title = pair.value
           category = actual
         } else {
-          category = Category(slug: pair.key, title: pair.value)
+          category = Category(slug: pair.key)
         }
         return category.save(on: database).transform(to: category)
       }
     }.flatten(on: database.eventLoop)
 
+    let maps = futureLanguages.and(futureCategories).map { (languages, categories) -> ([String: Language], [String: Category]) in
+
+      let langMap = Dictionary(uniqueKeysWithValues: languages.compactMap { lang in
+        lang.id.map { ($0, lang) }
+      })
+      let catMap = Dictionary(uniqueKeysWithValues: categories.compactMap { cat in
+        cat.id.map { ($0, cat) }
+      })
+      return (langMap, catMap)
+    }
+
+//    let titleMap = CategoryTitle.query(on: database)
+//    .with(\.$category)
+//    .with(\.$language)
+//    .all().map { (catTitles) -> ([String: [String : CategoryTitle]]) in
+//      var dictionary = [String: [String : CategoryTitle]]()
+//      for categoryTitle in catTitles {
+//        var langs = dictionary[categoryTitle.$category.id] ?? [String : CategoryTitle]()
+//        langs[categoryTitle.$language.id] = categoryTitle
+//      }
+//      return dictionary
+//    }
+//    maps.and(titleMap).flatMap { (maps, titleMap) -> EventLoopFuture<Void> in
+//      let (langMap, catMap) = maps
+//      for (slug, categoryMap) in categories {
+//        guard let category = catMap[slug] else {
+//          continue
+//        }
+//        for (code, title) in categoryMap {
+//          guard let language = langMap[code] else {
+//            continue
+//          }
+//
+//        }
+//      }
+//    }
+
     // need map to lang, cats
 
     // save channels
-    let futureChannels = futureLanguages.and(futureCategories)
-      .flatMap { (languages, categories) -> EventLoopFuture<[(Channel, String?, [FeedItem])]> in
+    let futureChannels = maps
+      .flatMap { (maps) -> EventLoopFuture<[(Channel, String?, [FeedItem])]> in
 
-        let langMap = Dictionary(uniqueKeysWithValues: languages.map {
-          ($0.id, $0)
-        })
-        let catMap = Dictionary(uniqueKeysWithValues: categories.map {
-          ($0.id, $0)
-        })
+        let (langMap, catMap) = maps
         return organizedSites.map { (args) -> EventLoopFuture<(Channel, String?, [FeedItem])?> in
           let (lang, cat, site) = args
-          return Channel.query(on: database).filter("site_url", .equal, site.site_url).first()
+          return Channel.query(on: database).filter("site_url", .equal, site.site_url.absoluteString).first()
             .flatMap { (foundChannel) -> EventLoopFuture<(Channel, String?, [FeedItem])?> in
               let channel: Channel
               if let oldChannel = foundChannel {
@@ -140,12 +173,13 @@ struct RefreshCommand: Command {
                 channel = Channel()
               }
 
-              if let language = langMap[lang],
-                let category = catMap[cat],
+              if let _ = langMap[lang],
+                let _ = catMap[cat],
                 let feedChannel = try? FeedChannel(language: lang, category: cat, site: site) {
                 channel.title = feedChannel.title
-                channel.language = language
-                channel.category = category
+                channel.$language.id = lang
+                // channel.language = language
+                channel.$category.id = cat
                 channel.subtitle = feedChannel.summary
                 channel.author = feedChannel.author
                 channel.siteUrl = feedChannel.siteUrl
@@ -302,6 +336,7 @@ public final class Configurator: ConfiguratorProtocol {
     app.migrations.add([
       CategoryMigration(),
       LanguageMigration(),
+      CategoryTitleMigration(),
       ChannelMigration(),
       EntryMigration(),
       PodcastEpisodeMigration(),
@@ -328,6 +363,9 @@ public final class Configurator: ConfiguratorProtocol {
 //        app.webSockets.save(websocket, withID: workoutId)
 //      }
 //    }
+
+    app.commands.use(RefreshCommand(help: "Imports data into the database"), as: "refresh")
+
     try app.autoMigrate().wait()
     //   services.register(wss, as: WebSocketServer.self)
     app.get { _ in
