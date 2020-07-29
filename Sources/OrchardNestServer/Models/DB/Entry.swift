@@ -25,10 +25,10 @@ final class Entry: Model {
   var content: String?
 
   @Field(key: "url")
-  var url: URL
+  var url: String
 
   @OptionalField(key: "image")
-  var image: URL?
+  var imageURL: String?
 
   @Field(key: "published_at")
   var publishedAt: Date

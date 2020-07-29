@@ -164,6 +164,7 @@ struct RefreshCommand: Command {
         let (langMap, catMap) = maps
         return organizedSites.map { (args) -> EventLoopFuture<(Channel, String?, [FeedItem])?> in
           let (lang, cat, site) = args
+          
           return Channel.query(on: database).filter("site_url", .equal, site.site_url.absoluteString).first()
             .flatMap { (foundChannel) -> EventLoopFuture<(Channel, String?, [FeedItem])?> in
               let channel: Channel
@@ -182,10 +183,10 @@ struct RefreshCommand: Command {
                 channel.$category.id = cat
                 channel.subtitle = feedChannel.summary
                 channel.author = feedChannel.author
-                channel.siteUrl = feedChannel.siteUrl
-                channel.feedUrl = feedChannel.feedUrl
+                channel.siteUrl = feedChannel.siteUrl.absoluteString
+                channel.feedUrl = feedChannel.feedUrl.absoluteString
                 channel.twitterHandle = feedChannel.twitterHandle
-                channel.image = feedChannel.image
+                channel.imageURL = feedChannel.image?.absoluteString
 
                 channel.publishedAt = feedChannel.updated
                 return channel.save(on: database).transform(to: (channel, feedChannel.ytId, feedChannel.items))
@@ -233,11 +234,11 @@ struct RefreshCommand: Command {
           newEntry.channel = channel
           newEntry.content = feedItem.content
           newEntry.feedId = feedItem.id
-          newEntry.image = feedItem.image
+          newEntry.imageURL = feedItem.image?.absoluteString
           newEntry.publishedAt = feedItem.published
           newEntry.summary = feedItem.summary
           newEntry.title = feedItem.title
-          newEntry.url = feedItem.url
+          newEntry.url = feedItem.url.absoluteString
           return newEntry.save(on: database).transform(to: (newEntry, feedItem))
         }
       }.flatten(on: database.eventLoop)
@@ -277,7 +278,7 @@ struct RefreshCommand: Command {
       guard let id = entry.0.id, let audioURL = entry.1.audio else {
         return nil
       }
-      return PodcastEpisode(entryId: id, audioURL: audioURL)
+      return PodcastEpisode(entryId: id, audioURL: audioURL.absoluteString)
     }.flatMapEach(on: database.eventLoop) { newEpisode in
       PodcastEpisode.find(newEpisode.id, on: database)
         .flatMap { (episode) -> EventLoopFuture<Void> in

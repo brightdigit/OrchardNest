@@ -25,16 +25,16 @@ final class Channel: Model {
   var author: String
 
   @Field(key: "site_url")
-  var siteUrl: URL
+  var siteUrl: String
 
   @Field(key: "feed_url")
-  var feedUrl: URL
+  var feedUrl: String
 
   @OptionalField(key: "twitter_handle")
   var twitterHandle: String?
 
   @OptionalField(key: "image")
-  var image: URL?
+  var imageURL: String?
 
   @Field(key: "published_at")
   var publishedAt: Date
