@@ -6,6 +6,11 @@ final class Category: Model {
 
   init() {}
 
+  init(slug: String, title: String) {
+    id = slug
+    self.title = title
+  }
+
   @ID(custom: "slug", generatedBy: .user)
   var id: String?
 

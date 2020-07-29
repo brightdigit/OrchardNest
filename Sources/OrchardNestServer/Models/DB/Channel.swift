@@ -37,7 +37,7 @@ final class Channel: Model {
   var image: URL?
 
   @Field(key: "published_at")
-  var updated: Date
+  var publishedAt: Date
 
   // When this Planet was created.
   @Timestamp(key: "created_at", on: .create)

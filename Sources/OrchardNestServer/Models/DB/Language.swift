@@ -6,6 +6,11 @@ final class Language: Model {
 
   init() {}
 
+  init(code: String, title: String) {
+    id = code
+    self.title = title
+  }
+
   @ID(custom: "code", generatedBy: .user)
   var id: String?
 

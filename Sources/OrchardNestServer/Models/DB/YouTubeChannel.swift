@@ -6,9 +6,14 @@ final class YouTubeChannel: Model {
 
   init() {}
 
+  init(channelId: UUID, youtubeId: String) {
+    id = channelId
+    self.youtubeId = youtubeId
+  }
+
   @ID(custom: "channel_id", generatedBy: .user)
-  var id: String?
+  var id: UUID?
 
   @Field(key: "youtube_id")
-  var ytId: String
+  var youtubeId: String
 }
