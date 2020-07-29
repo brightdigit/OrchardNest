@@ -6,6 +6,11 @@ final class YoutubeVideo: Model {
 
   init() {}
 
+  init(entryId: UUID, youtubeId: String) {
+    id = entryId
+    self.youtubeId = youtubeId
+  }
+
   @ID(custom: "entry_id", generatedBy: .user)
   var id: UUID?
 

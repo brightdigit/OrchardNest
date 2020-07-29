@@ -6,9 +6,14 @@ final class PodcastEpisode: Model {
 
   init() {}
 
+  init(entryId: UUID, audioURL: URL) {
+    id = entryId
+    self.audioURL = audioURL
+  }
+
   @ID(custom: "entry_id", generatedBy: .user)
   var id: UUID?
 
   @Field(key: "audio")
-  var audio: URL
+  var audioURL: URL
 }

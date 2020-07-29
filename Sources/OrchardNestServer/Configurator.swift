@@ -61,7 +61,7 @@ struct RefreshCommand: Command {
 
   var help: String
 
-  // swiftlint:disable:next function_body_length
+  // swiftlint:disable:next function_body_length cyclomatic_complexity
   func run(using context: CommandContext, signature: RefreshSignature) throws {
     let database = context.application.db
 
@@ -163,7 +163,7 @@ struct RefreshCommand: Command {
       }
 
     // save youtube channels to channels
-    futureChannels.mapEachCompact { (channel) -> YouTubeChannel? in
+    let futYTChannels = futureChannels.mapEachCompact { (channel) -> YouTubeChannel? in
       guard let id = channel.0.id, let youtubeId = channel.1 else {
         return nil
       }
@@ -186,9 +186,79 @@ struct RefreshCommand: Command {
         }
     }
     // save entries to channels
+    let futureEntries = futureChannels.flatMapEach(on: database.eventLoop) { (args) -> EventLoopFuture<[(Entry, FeedItem)]> in
+      let (channel, _, feedItems) = args
+      return feedItems.map { (feedItem) -> EventLoopFuture<(Entry, FeedItem)> in
+        Entry.query(on: database).filter(\.$feedId == feedItem.id).first().flatMap { foundEntry in
+          let newEntry: Entry
+          if let entry = foundEntry {
+            newEntry = entry
+          } else {
+            newEntry = Entry()
+          }
+          newEntry.channel = channel
+          newEntry.content = feedItem.content
+          newEntry.feedId = feedItem.id
+          newEntry.image = feedItem.image
+          newEntry.publishedAt = feedItem.published
+          newEntry.summary = feedItem.summary
+          newEntry.title = feedItem.title
+          newEntry.url = feedItem.url
+          return newEntry.save(on: database).transform(to: (newEntry, feedItem))
+        }
+      }.flatten(on: database.eventLoop)
+    }.map {
+      $0.flatMap { $0 }
+    }
 
     // save videos to entries
+    let futYTVideos = futureEntries.mapEachCompact { (entry) -> YoutubeVideo? in
+
+      guard let id = entry.0.id, let youtubeId = entry.1.ytId else {
+        return nil
+      }
+      return YoutubeVideo(entryId: id, youtubeId: youtubeId)
+    }.flatMapEach(on: database.eventLoop) { newVideo in
+      YoutubeVideo.find(newVideo.id, on: database)
+        .optionalMap { $0.youtubeId == newVideo.youtubeId ? $0 : nil }
+        .flatMap { (video) -> EventLoopFuture<Void> in
+          guard let entryId = newVideo.id, video == nil else {
+            return database.eventLoop.makeSucceededFuture(())
+          }
+
+          return YoutubeVideo.query(on: database).group(.or) {
+            $0.filter(\.$id == entryId).filter(\.$youtubeId == newVideo.youtubeId)
+          }.all().flatMapEach(on: database.eventLoop) { channel in
+            channel.delete(on: database)
+          }.flatMap { _ in
+            newVideo.save(on: database)
+          }
+        }
+    }
+
     // save podcastepisodes to entries
+
+    let futPodEpisodes = futureEntries.mapEachCompact { (entry) -> PodcastEpisode? in
+
+      guard let id = entry.0.id, let audioURL = entry.1.audio else {
+        return nil
+      }
+      return PodcastEpisode(entryId: id, audioURL: audioURL)
+    }.flatMapEach(on: database.eventLoop) { newEpisode in
+      PodcastEpisode.find(newEpisode.id, on: database)
+        .flatMap { (episode) -> EventLoopFuture<Void> in
+          let savingEpisode: PodcastEpisode
+          if let oldEpisode = episode {
+            oldEpisode.audioURL = newEpisode.audioURL
+            savingEpisode = oldEpisode
+          } else {
+            savingEpisode = newEpisode
+          }
+          return savingEpisode.save(on: database)
+        }
+    }
+
+    try futYTVideos.and(futYTChannels).and(futPodEpisodes).transform(to: ()).wait()
   }
 }
 
