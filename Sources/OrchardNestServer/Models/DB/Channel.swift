@@ -50,3 +50,11 @@ final class Channel: Model {
   @Children(for: \.$channel)
   var entries: [Entry]
 }
+
+extension Channel: Validatable {
+  static func validations(_ validations: inout Validations) {
+    validations.add("siteUrl", as: URL.self)
+    validations.add("feedUrl", as: URL.self)
+    validations.add("imageURL", as: URL.self)
+  }
+}

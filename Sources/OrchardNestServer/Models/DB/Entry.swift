@@ -42,5 +42,9 @@ final class Entry: Model, Content {
   var updatedAt: Date?
 }
 
-// public let ytId: String?
-// public let audio: URL?
+extension Entry: Validatable {
+  static func validations(_ validations: inout Validations) {
+    validations.add("url", as: URL.self)
+    validations.add("imageURL", as: URL.self)
+  }
+}

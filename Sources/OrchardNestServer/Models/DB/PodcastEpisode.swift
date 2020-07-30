@@ -17,3 +17,9 @@ final class PodcastEpisode: Model {
   @Field(key: "audio")
   var audioURL: String
 }
+
+extension PodcastEpisode: Validatable {
+  static func validations(_ validations: inout Validations) {
+    validations.add("audioURL", as: URL.self)
+  }
+}

@@ -83,12 +83,12 @@ public final class Configurator: ConfiguratorProtocol {
 
     try app.autoMigrate().wait()
     //   services.register(wss, as: WebSocketServer.self)
-    app.get { req in
-      req.queue.dispatch(
-        RefreshJob.self,
-        RefreshConfiguration()
-      ).map { "Hello" }
-    }
+//    app.get { req in
+//      req.queue.dispatch(
+//        RefreshJob.self,
+//        RefreshConfiguration()
+//      ).map { "Hello" }
+//    }
 
     let api = app.grouped("api", "v1")
     try api.grouped("entires").register(collection: EntryController())
