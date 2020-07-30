@@ -46,4 +46,7 @@ final class Channel: Model {
   // When this Planet was last updated.
   @Timestamp(key: "updated_at", on: .update)
   var updatedAt: Date?
+
+  @Children(for: \.$channel)
+  var entries: [Entry]
 }

@@ -1,7 +1,7 @@
 import Fluent
 import Vapor
 
-final class Entry: Model {
+final class Entry: Model, Content {
   static var schema = "entries"
 
   init() {}

@@ -1,4 +1,3 @@
-// swiftlint:disable cyclomatic_complexity function_body_length
 import Fluent
 import FluentPostgresDriver
 import OrchardNestKit
@@ -80,7 +79,7 @@ public final class Configurator: ConfiguratorProtocol {
 
     app.queues.add(RefreshJob())
     try app.queues.startInProcessJobs(on: .default)
-    // app.commands.use(RefreshCommand(help: "Imports data into the database"), as: "refresh")
+    app.commands.use(RefreshCommand(help: "Imports data into the database"), as: "refresh")
 
     try app.autoMigrate().wait()
     //   services.register(wss, as: WebSocketServer.self)
@@ -90,5 +89,8 @@ public final class Configurator: ConfiguratorProtocol {
         RefreshConfiguration()
       ).map { "Hello" }
     }
+
+    let api = app.grouped("api", "v1")
+    try api.grouped("entires").register(collection: EntryController())
   }
 }
