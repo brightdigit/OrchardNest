@@ -97,3 +97,9 @@ public static func imageURL(fromYoutubeId ytId: String) -> URL
 ```swift
 public init(language: String, category: String, site: Site) throws
 ```
+
+### `init(language:category:site:data:)`
+
+```swift
+public init(language: String, category: String, site: Site, data: Data) throws
+```

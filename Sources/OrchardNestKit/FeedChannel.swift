@@ -178,7 +178,7 @@ public struct FeedChannel: Codable {
       } ?? [FeedItem]()
     }
   }
-  
+
   // swiftlint:disable:next function_body_length
   public init(language: String, category: String, site: Site, data: Data) throws {
     let parser = FeedParser(data: data)
