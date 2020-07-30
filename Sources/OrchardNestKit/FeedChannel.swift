@@ -47,12 +47,13 @@ public struct FeedChannel: Codable {
         guard let title = item.title,
           let summary = item.summary,
           let url = item.externalUrl.flatMap(URL.init(string:)) ?? item.url.flatMap(URL.init(string:)),
-          let id = item.id ?? item.url ?? item.externalUrl else {
+          let id = item.id ?? item.url ?? item.externalUrl,
+          let published = item.datePublished ?? item.dateModified else {
           return nil
         }
         let content = item.contentHtml ?? item.contentText
         let image = item.image.flatMap(URL.init(string:)) ?? item.bannerImage.flatMap(URL.init(string:))
-        let published = item.datePublished ?? item.dateModified ?? Date()
+       
         return FeedItem(
           siteUrl: siteUrl,
           id: id,
@@ -90,7 +91,8 @@ public struct FeedChannel: Codable {
           item.content?.contentEncoded ??
           item.media?.mediaDescription?.value,
           let id = item.guid?.value ?? item.link,
-          let url = item.link.flatMap(URL.init(string:)) else {
+          let url = item.link.flatMap(URL.init(string:)),
+          let published = item.pubDate else {
           return nil
         }
         let enclosure = item.enclosure.flatMap(Enclosure.init)
@@ -102,7 +104,7 @@ public struct FeedChannel: Codable {
           }.first
         // let ytId: String
         // let itId = item.media.
-        let published = item.pubDate ?? Date()
+        
         return FeedItem(
           siteUrl: siteUrl,
           id: id,
@@ -157,6 +159,9 @@ public struct FeedChannel: Codable {
         guard let id = entry.id else {
           return nil
         }
+        guard let published = entry.published ?? entry.updated else {
+          return nil
+        }
         let ytId: String?
         if id.starts(with: "yt:video:") {
           ytId = id.components(separatedBy: ":").last
@@ -173,7 +178,7 @@ public struct FeedChannel: Codable {
           image: media?.compactMap { $0.imageURL }.first,
           ytId: ytId,
           audio: media?.compactMap { $0.audioURL }.first,
-          published: entry.published ?? Date()
+          published: published
         )
       } ?? [FeedItem]()
     }

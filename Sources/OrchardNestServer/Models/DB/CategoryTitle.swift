@@ -2,7 +2,7 @@ import Fluent
 import Vapor
 
 final class CategoryTitle: Model {
-  static var schema = "categoryTitles"
+  static var schema = "category_titles"
 
   init() {}
 

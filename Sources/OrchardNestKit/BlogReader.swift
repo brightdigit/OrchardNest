@@ -1,5 +1,6 @@
 import Foundation
 
+@available(*, deprecated)
 public class BlogReader {
   public init() {}
 

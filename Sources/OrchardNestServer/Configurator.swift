@@ -29,12 +29,16 @@ struct RefreshJob: Job {
     guard let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json") else {
       return context.eventLoop.makeFailedFuture(NSError())
     }
+    
+    
+      let decoder = JSONDecoder()
+    
 
-    let reader = BlogReader()
     let sites: [LanguageContent]
     context.logger.info("downloading blog list...")
     do {
-      sites = try reader.sites(fromURL: url)
+      let data = try Data(contentsOf: url)
+      sites = try decoder.decode([LanguageContent].self, from: data)
     } catch {
       return context.eventLoop.future(error: error)
     }
@@ -347,7 +351,7 @@ public final class Configurator: ConfiguratorProtocol {
     // Register middleware
     // var middlewares = MiddlewareConfig() // Create _empty_ middleware config
     // middlewares.use(SessionsMiddleware.self) // Enables sessions.
-    let rootPath = Environment.get("ROOT_PATH") ?? app.directory.publicDirectory
+    //let rootPath = Environment.get("ROOT_PATH") ?? app.directory.publicDirectory
 
 //    app.webSockets = WebSocketRepository()
 //
@@ -377,7 +381,7 @@ public final class Configurator: ConfiguratorProtocol {
       PodcastEpisodeMigration(),
       YouTubeChannelMigration(),
       YouTubeVideoMigration(),
-      JobModelMigrate()
+      JobModelMigrate(schema: "queue_jobs")
     ])
 
     app.queues.configuration.refreshInterval = .seconds(25)
