@@ -21,6 +21,7 @@ public struct FeedChannel: Codable {
   public let items: [FeedItem]
   public let itemCount: Int?
 
+  // swiftlint:disable:next function_body_length
   public init(language: String, category: String, site: Site, data: Data) throws {
     let parser = FeedParser(data: data)
     let feed = try parser.parse().get()

@@ -1,8 +1,19 @@
 import Fluent
 import FluentPostgresDriver
 import OrchardNestKit
+import Plot
 import QueuesFluentDriver
 import Vapor
+
+extension HTML: ResponseEncodable {
+  public func encodeResponse(for request: Request) -> EventLoopFuture<Response> {
+    var headers = HTTPHeaders()
+    headers.add(name: .contentType, value: "text/html")
+    return request.eventLoop.makeSucceededFuture(.init(
+      status: .ok, headers: headers, body: .init(string: render())
+    ))
+  }
+}
 
 typealias OrganizedSite = (String, String, Site)
 
@@ -28,7 +39,12 @@ public final class Configurator: ConfiguratorProtocol {
 //
 //    app.middleware.use(DirectoryIndexMiddleware(publicDirectory: rootPath))
 
-    app.middleware.use(ErrorMiddleware.default(environment: app.environment))
+    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+
+//    // Configure Leaf
+//    app.views.use(.leaf)
+//    app.leaf.cache.isEnabled = app.environment.isRelease
+//    app.middleware.use(ErrorMiddleware.default(environment: app.environment))
     // middlewares.use(ErrorMiddleware.self) // Catches errors and converts to HTTP response
     // services.register(middlewares)
 
@@ -83,14 +99,9 @@ public final class Configurator: ConfiguratorProtocol {
 
     try app.autoMigrate().wait()
     //   services.register(wss, as: WebSocketServer.self)
-//    app.get { req in
-//      req.queue.dispatch(
-//        RefreshJob.self,
-//        RefreshConfiguration()
-//      ).map { "Hello" }
-//    }
 
     let api = app.grouped("api", "v1")
+    try app.register(collection: HTMLController())
     try api.grouped("entires").register(collection: EntryController())
   }
 }

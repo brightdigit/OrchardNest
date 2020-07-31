@@ -27,7 +27,7 @@ let package = Package(
     .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
     .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0"),
     .package(name: "QueuesFluentDriver", url: "https://github.com/m-barthelemy/vapor-queues-fluent-driver.git", from: "0.3.8"),
-    .package(url: "https://github.com/vapor/leaf.git", from: "4.0.0-rc")
+    .package(name: "Plot", url: "https://github.com/johnsundell/plot.git", from: "0.8.0")
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -43,7 +43,7 @@ let package = Package(
                      .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
                      .product(name: "Vapor", package: "vapor"),
                      .product(name: "QueuesFluentDriver", package: "QueuesFluentDriver"),
-                     .product(name: "Leaf", package: "leaf")]
+                     .product(name: "Plot", package: "Plot")]
     ),
     .target(name: "orcnst",
             dependencies: ["OrchardNestKit", "OrchardNestServer", "FeedKit"]),

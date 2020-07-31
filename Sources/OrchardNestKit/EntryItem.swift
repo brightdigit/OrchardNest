@@ -1,11 +1,11 @@
 import Foundation
 
 public struct EntryChannel: Codable {
-  let id: UUID
-  let title: String
-  let author: String
-  let twitterHandle: String?
-  let imageURL: URL?
+  public let id: UUID
+  public let title: String
+  public let author: String
+  public let twitterHandle: String?
+  public let imageURL: URL?
 
   public init(
     id: UUID,
@@ -23,14 +23,14 @@ public struct EntryChannel: Codable {
 }
 
 public struct EntryItem: Codable {
-  let id: UUID
-  let channel: EntryChannel
-  let feedId: String
-  let title: String
-  let summary: String
-  let url: URL
-  let imageURL: URL?
-  let publishedAt: Date
+  public let id: UUID
+  public let channel: EntryChannel
+  public let feedId: String
+  public let title: String
+  public let summary: String
+  public let url: URL
+  public let imageURL: URL?
+  public let publishedAt: Date
 
   public init(id: UUID,
               channel: EntryChannel,
