@@ -5,6 +5,7 @@ import Queues
 import Vapor
 
 struct RefreshJob: Job {
+  static let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json")!
   typealias Payload = RefreshConfiguration
 
   func error(_ context: QueueContext, _ error: Error, _: RefreshConfiguration) -> EventLoopFuture<Void> {
@@ -15,16 +16,12 @@ struct RefreshJob: Job {
   func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
     let database = context.application.db
 
-    guard let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json") else {
-      return context.eventLoop.makeFailedFuture(NSError())
-    }
-
     let decoder = JSONDecoder()
 
     let sites: [LanguageContent]
     context.logger.info("downloading blog list...")
     do {
-      let data = try Data(contentsOf: url)
+      let data = try Data(contentsOf: Self.url)
       sites = try decoder.decode([LanguageContent].self, from: data)
     } catch {
       return context.eventLoop.future(error: error)

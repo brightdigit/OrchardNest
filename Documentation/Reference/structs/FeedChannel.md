@@ -92,12 +92,6 @@ public let itemCount: Int?
 public static func imageURL(fromYoutubeId ytId: String) -> URL
 ```
 
-### `init(language:category:site:)`
-
-```swift
-public init(language: String, category: String, site: Site) throws
-```
-
 ### `init(language:category:site:data:)`
 
 ```swift
