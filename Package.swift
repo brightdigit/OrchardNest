@@ -22,7 +22,7 @@ let package = Package(
     // Dependencies declare other packages that this package depends on.
     .package(url: "https://github.com/brightdigit/FeedKit.git", .branch("master")),
     .package(url: "https://github.com/shibapm/Komondor", from: "1.0.5"),
-    .package(url: "https://github.com/leogdion/SourceDocs", .branch("patch-1")),
+    .package(url: "https://github.com/eneko/SourceDocs", from: "1.2.1"),
     .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
     .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
     .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0"),
