@@ -84,7 +84,6 @@ struct RefreshJob: Job {
     }
 
     // need map to lang, cats
-    context.application.http.client.configuration.timeout = HTTPClient.Configuration.Timeout(connect: .seconds(10), read: .seconds(10))
 
     let futureFeeds = maps.flatMap { (maps) -> EventLoopFuture<[(String, String, FeedChannel)?]> in
       context.logger.info("downloading feeds...")
@@ -93,14 +92,18 @@ struct RefreshJob: Job {
         let (lang, cat, site) = args
         context.logger.info("downloading \(site.title)...")
 
-        return context.application.client.get(URI(string: site.feed_url.absoluteString))
+        let uri = URI(string: site.feed_url.absoluteString)
+        let headers = HTTPHeaders([("Host", uri.host!), ("User-Agent", "OrchardNest-Robot"), ("Accept", "*/*")])
+
+        let request = ClientRequest(method: .GET, url: uri, headers: headers, body: nil)
+        return context.application.client.send(request)
           .flatMapAlways { (result) -> EventLoopFuture<(String, String, FeedChannel)?> in
 
             let body: ByteBuffer?
             do {
               body = try result.get().body
             } catch {
-              context.logger.info("\(site.title) URLERROR: \(error.localizedDescription)")
+              context.logger.info("\(site.title) URLERROR: \(error.localizedDescription) \(site.feed_url)")
               body = nil
             }
             let feedChannelSet = body.flatMap { (buffer) -> (String, String, FeedChannel)? in
@@ -108,11 +111,11 @@ struct RefreshJob: Job {
               do {
                 channel = try FeedChannel(language: lang, category: cat, site: site, data: Data(buffer: buffer))
               } catch {
-                context.logger.info("\(site.title) FEDERROR: \(error.localizedDescription)")
+                context.logger.info("\(site.title) FEDERROR: \(error.localizedDescription) \(site.feed_url)")
                 return nil
               }
               guard channel.items.count > 0 || channel.itemCount == channel.items.count else {
-                context.logger.info("\(site.title) ITMERROR")
+                context.logger.info("\(site.title) ITMERROR \(site.feed_url)")
                 return nil
               }
               guard let newLangId = langMap[lang]?.id else {

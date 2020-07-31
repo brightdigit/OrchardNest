@@ -58,7 +58,9 @@ public final class Configurator: ConfiguratorProtocol {
     }
 
     app.databases.use(.postgres(configuration: postgreSQLConfig, maxConnectionsPerEventLoop: 8, connectionPoolTimeout: .seconds(60)), as: .psql)
-
+    app.http.client.configuration.ignoreUncleanSSLShutdown = true
+    app.http.client.configuration.decompression = .enabled(limit: .none)
+    app.http.client.configuration.timeout = .init(connect: .seconds(12), read: .seconds(12))
     app.migrations.add([
       CategoryMigration(),
       LanguageMigration(),
@@ -103,5 +105,12 @@ public final class Configurator: ConfiguratorProtocol {
     let api = app.grouped("api", "v1")
     try app.register(collection: HTMLController())
     try api.grouped("entires").register(collection: EntryController())
+
+    app.post("jobs") { req in
+      req.queue.dispatch(
+        RefreshJob.self,
+        RefreshConfiguration()
+      ).map { HTTPStatus.created }
+    }
   }
 }
