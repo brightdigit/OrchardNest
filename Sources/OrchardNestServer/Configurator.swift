@@ -15,7 +15,11 @@ extension HTML: ResponseEncodable {
   }
 }
 
-typealias OrganizedSite = (String, String, Site)
+struct OrganizedSite {
+  let languageCode: String
+  let categorySlug: String
+  let site: Site
+}
 
 //
 public final class Configurator: ConfiguratorProtocol {
