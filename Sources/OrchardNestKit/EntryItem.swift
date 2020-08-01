@@ -17,7 +17,8 @@ public struct EntryItem: Codable {
               summary: String,
               url: URL,
               imageURL: URL?,
-              publishedAt: Date) {
+              publishedAt: Date)
+  {
     self.id = id
     self.channel = channel
     self.feedId = feedId
