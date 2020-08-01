@@ -17,7 +17,7 @@ struct HTMLController {
         HTML(
           .head(
             .title("My website"),
-            .stylesheet("styles.css")
+            .link(.rel(.stylesheet), .href("/styles/milligram.css"))
           ),
           .body(
             .div(
