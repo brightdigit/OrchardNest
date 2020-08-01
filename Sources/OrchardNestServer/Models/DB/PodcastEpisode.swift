@@ -23,3 +23,20 @@ extension PodcastEpisode: Validatable {
     validations.add("audioURL", as: URL.self)
   }
 }
+
+extension PodcastEpisode {
+  static func upsert(_ newEpisode: PodcastEpisode, on database: Database) -> EventLoopFuture<Void> {
+    return PodcastEpisode.find(newEpisode.id, on: database)
+      .flatMap { (episode) -> EventLoopFuture<Void> in
+        let savingEpisode: PodcastEpisode
+        if let oldEpisode = episode {
+          oldEpisode.audioURL = newEpisode.audioURL
+          savingEpisode = oldEpisode
+        } else {
+          savingEpisode = newEpisode
+        }
+        // context.logger.info("saving podcast episode \"\(savingEpisode.audioURL)\"")
+        return savingEpisode.save(on: database)
+      }
+  }
+}
