@@ -8,6 +8,11 @@ struct HTMLController {
     return Entry.query(on: req.db)
       .sort(\.$publishedAt, .descending)
       .with(\.$channel)
+      .join(Channel.self, on: \Entry.$channel.$id == \Channel.$id)
+      .filter(Channel.self, \Channel.$category.$id != "podcast")
+      .filter(Channel.self, \Channel.$category.$id != "youtube")
+      .filter(Channel.self, \Channel.$category.$id != "newsletters")
+      .filter(Channel.self, \Channel.$category.$id != "updates")
       .paginate(for: req)
       .flatMapThrowing { (page: Page<Entry>) -> Page<EntryItem> in
         try page.map { (entry: Entry) -> EntryItem in
@@ -16,17 +21,24 @@ struct HTMLController {
       }.map { (page) -> HTML in
         HTML(
           .head(
-            .title("My website"),
+            .title("OrchardNest"),
             .link(.rel(.stylesheet), .href("/styles/milligram.css"))
           ),
           .body(
             .div(
-              .h1("My website"),
-              .p("Writing HTML in Swift is pretty great!")
-            ),
-            .ul(.forEach(page.items) {
-              .li(.class("name"), .text($0.title))
-            })
+              .class("container"),
+              .div(
+                .class("row"),
+                .div(
+                  .class("column"),
+                  .h1("OrchardNest"),
+                  .p("Writing HTML in Swift is pretty great!"),
+                  .ul(.forEach(page.items) {
+                    .li(.class("name"), .text($0.title))
+                  })
+                )
+              )
+            )
           )
         )
       }
