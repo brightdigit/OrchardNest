@@ -34,7 +34,17 @@ struct HTMLController {
                   .h1("OrchardNest"),
                   .p("Writing HTML in Swift is pretty great!"),
                   .ul(.forEach(page.items) {
-                    .li(.class("name"), .text($0.title))
+                    .li(
+                      .class("blog-post"),
+
+                      .a(
+                        .href($0.url),
+                        .div(
+                          .class("title"),
+                          .text($0.title)
+                        )
+                      )
+                    )
                   })
                 )
               )
