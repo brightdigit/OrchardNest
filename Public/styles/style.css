@@ -9,24 +9,31 @@ header > nav > ul {
   list-style: none;
   margin: -5px;
 }
+header .logo {
+  height: 0.9em;
+}
 header > nav > ul > li {
   float: left;
   margin: 5px;
   padding: 5px;
 
 }
-ul.article-list {
+ul.articles {
   list-style: none;
 }
 
-ul.article-list li {
+ul.articles li {
   padding: 1em 0px;
 }
 
-ul.article-list li > .summary {
+ul.articles li > .title i.el {
+  margin-right: 4px;
+}
+
+ul.articles li > .summary {
   padding: 8px 0px;
 }
 
-ul.article-list li > .publishedAt,  ul.article-list li > .author{
+ul.articles li > .publishedAt,  ul.articles li > .author{
   font-size: 0.8em;
 }
