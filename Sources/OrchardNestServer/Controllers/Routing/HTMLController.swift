@@ -8,7 +8,13 @@ struct InvalidDatabaseError: Error {}
 
 extension String {
   var plainTextShort: String {
-    String(replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil).prefix(240))
+    var result : String
+    
+    result = replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+    guard result.count > 240 else {
+      return result
+    }
+    return result.prefix(240).components(separatedBy: " ").dropLast().joined(separator: " ").appending("...")
   }
 }
 
@@ -57,6 +63,7 @@ struct HTMLController {
       .with(\.$youtubeVideos)
       .join(children: \.$youtubeVideos, method: .left)
       .filter(Channel.self, \Channel.$category.$id != "updates")
+      .filter(Channel.self, \Channel.$language.$id == "en")
       .sort(\.$publishedAt, .descending)
       .limit(32)
       .all()
@@ -67,6 +74,7 @@ struct HTMLController {
         HTML(
           .head(
             .title("OrchardNest - Swift Articles and News"),
+            .meta(.charset(.utf8)),
 //            <link rel="stylesheet" type="text/css" href="/styles/elusive-icons/css/elusive-icons.min.css"/>
 //                <link rel="stylesheet" type="text/css" href="/styles/normalize.css"/>
 //                <link rel="stylesheet" type="text/css" href="/styles/milligram.css"/>
