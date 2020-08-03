@@ -5,6 +5,12 @@ import Vapor
 
 struct HTMLController {
   func index(req: Request) -> EventLoopFuture<HTML> {
+    /*
+     select * from entries inner join
+     (select channel_id, max(published_at) as published_at from entries group by channel_id) latest_entries on entries.channel_id = latest_entries.channel_id and entries.published_at = latest_entries.published_at
+     inner join channels on entries.channel_id = channels.id
+     order by entries.published_at desc
+     */
     return Entry.query(on: req.db)
       .sort(\.$publishedAt, .descending)
       .with(\.$channel)
