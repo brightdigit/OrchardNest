@@ -15,6 +15,10 @@ struct RefreshJob: Job {
   }
 
   func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
+    context.application.http.client.configuration = HTTPClient.Configuration(tlsConfiguration: nil, redirectConfiguration: nil, timeout: HTTPClient.Configuration.Timeout(connect: .seconds(20), read: .seconds(20)), proxy: nil, ignoreUncleanSSLShutdown: true, decompression: .enabled(limit: .none))
+//    context.application.http.client.configuration.ignoreUncleanSSLShutdown = true
+//    context.application.http.client.configuration.decompression = .enabled(limit: .none)
+//    context.application.http.client.configuration.timeout = .init(connect: .seconds(12), read: .seconds(12))
     let database = context.application.db
 
     let decoder = JSONDecoder()
@@ -61,7 +65,25 @@ struct RefreshJob: Job {
       }.flatten(on: context.eventLoop)
     }
 
-    let futureFeeds = futureFeedResults.mapEachCompact { try? $0.get() }
+    let groupedResults = futureFeedResults.map { results -> ([FeedConfiguration], [FeedError]) in
+      var errors = [FeedError]()
+      var configurations = [FeedConfiguration]()
+      results.forEach {
+        switch $0 {
+        case let .success(config): configurations.append(config)
+        case let .failure(error): errors.append(error)
+        }
+      }
+      return (configurations, errors)
+    }
+
+    groupedResults.whenSuccess { groupedResults in
+      let errors = groupedResults.1
+      for error in errors {
+        context.logger.info("\(error.localizedDescription)")
+      }
+    }
+    let futureFeeds = groupedResults.map { $0.0 }
     let currentChannels = futureFeeds.map { (args) -> [String] in
       args.map {
         $0.channel.siteUrl.absoluteString
