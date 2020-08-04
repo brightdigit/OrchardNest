@@ -2,6 +2,7 @@ import Fluent
 import OrchardNestKit
 import Queues
 import Vapor
+import NIO
 
 // Channel, String?, [FeedItem]
 
@@ -15,7 +16,7 @@ struct RefreshJob: Job {
   }
 
   func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
-    context.application.http.client.configuration = HTTPClient.Configuration(tlsConfiguration: nil, redirectConfiguration: nil, timeout: HTTPClient.Configuration.Timeout(connect: .seconds(20), read: .seconds(20)), proxy: nil, ignoreUncleanSSLShutdown: true, decompression: .enabled(limit: .none))
+    //context.application.http.client.configuration = HTTPClient.Configuration(tlsConfiguration: nil, redirectConfiguration: nil, timeout: HTTPClient.Configuration.Timeout(connect: .seconds(20), read: .seconds(20)), proxy: nil, ignoreUncleanSSLShutdown: true, decompression: .enabled(limit: .none))
 //    context.application.http.client.configuration.ignoreUncleanSSLShutdown = true
 //    context.application.http.client.configuration.decompression = .enabled(limit: .none)
 //    context.application.http.client.configuration.timeout = .init(connect: .seconds(12), read: .seconds(12))
@@ -83,64 +84,97 @@ struct RefreshJob: Job {
         context.logger.info("\(error.localizedDescription)")
       }
     }
-    let futureFeeds = groupedResults.map { $0.0 }
-    let currentChannels = futureFeeds.map { (args) -> [String] in
-      args.map {
-        $0.channel.siteUrl.absoluteString
-      }
-    }.flatMap { siteUrls in
-      Channel.query(on: database).filter(\.$siteUrl ~~ siteUrls).all()
-    }.map {
-      Dictionary(uniqueKeysWithValues: ($0.map {
-        ($0.siteUrl, $0)
-      }))
-    }
-
-    let futureChannels = futureFeeds.and(currentChannels).map { (args) -> [ChannelFeedItemsConfiguration] in
-      context.logger.info("beginning upserting channels...")
-      let (feeds, currentChannels) = args
-
-      return feeds.map { feedArgs in
-        ChannelFeedItemsConfiguration(channels: currentChannels, feedArgs: feedArgs)
-      }
-    }.flatMapEachCompact(on: database.eventLoop) { (args) -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
-
-      context.logger.info("saving \"\(args.channel.title)\"")
-      return args.channel.save(on: database).transform(to: args).flatMapError { _ in database.eventLoop.future(ChannelFeedItemsConfiguration?.none) }
-    }
-
-    // save youtube channels to channels
-    let futYTChannels = futureChannels.mapEachCompact { (channel) -> YouTubeChannel? in
-      channel.youtubeChannel
-    }.flatMapEach(on: database.eventLoop) { newChannel in
-      YouTubeChannel.upsert(newChannel, on: database)
-    }
-
-    // save entries to channels
-    let futureEntries = futureChannels
-      .flatMapEachThrowing { try $0.feedItems() }
-      .map { $0.flatMap { $0 } }
-      .flatMapEach(on: database.eventLoop) { (config) -> EventLoopFuture<FeedItemEntry> in
-        FeedItemEntry.from(upsertOn: database, from: config)
+    
+    return database.transaction { (database)  in
+      let futureFeeds = groupedResults.map { $0.0 }
+      let currentChannels = futureFeeds.map { (args) -> [String] in
+        args.map {
+          $0.channel.feedUrl.absoluteString
+        }
+      }.flatMap { feedUrls in
+        Channel.query(on: database).filter(\.$feedUrl ~~ feedUrls).all()
+      }.map {
+        Dictionary(uniqueKeysWithValues: ($0.map {
+          ($0.feedUrl, $0)
+        }))
       }
 
-    // save videos to entries
-    let futYTVideos = futureEntries.mapEachCompact { (entry) -> YoutubeVideo? in
+      
+      let futureChannels = futureFeeds.and(currentChannels).map { (args) -> [ChannelFeedItemsConfiguration] in
+        context.logger.info("beginning upserting channels...")
+        let (feeds, currentChannels) = args
 
-      entry.youtubeVideo
-    }.flatMapEach(on: database.eventLoop) { newVideo in
-      YoutubeVideo.upsert(newVideo, on: database)
+        return feeds.map { feedArgs in
+          ChannelFeedItemsConfiguration(channels: currentChannels, feedArgs: feedArgs)
+        }
+      }.flatMap { (configurations) -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+      
+        database.withConnection { (database) -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+          
+            var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
+            let promise = context.eventLoop.makePromise(of: Void.self)
+          _ = context.eventLoop.scheduleRepeatedAsyncTask(initialDelay: .seconds(1), delay: .nanoseconds(20000000)) { (task : RepeatedTask) -> EventLoopFuture<Void> in
+            guard results.count < configurations.count else {
+              task.cancel(promise: promise)
+              
+              context.logger.info("finished upserting channels...")
+              return context.eventLoop.makeSucceededFuture(())
+            }
+            let args = configurations[results.count]
+            context.logger.info("saving \"\(args.channel.title)\"")
+            let result =  args.channel.save(on: database).transform(to: args).flatMapError { error -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
+              return database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
+            }
+            results.append(result)
+            return result.transform(to: ())
+          }
+          let finalResults = promise.futureResult.flatMap {
+            return  results.flatten(on: context.eventLoop).mapEachCompact{ $0 }
+          }
+           
+          
+          return finalResults
+        }
+      }
+//      .flatMapEachCompact(on: context.eventLoop) { (args) -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
+//
+//        context.logger.info("saving \"\(args.channel.title)\"")
+//        return args.channel.save(on: database).transform(to: args).flatMapError { _ in database.eventLoop.future(ChannelFeedItemsConfiguration?.none) }
+//      }
+
+      // save youtube channels to channels
+      let futYTChannels = futureChannels.mapEachCompact { (channel) -> YouTubeChannel? in
+        channel.youtubeChannel
+      }.flatMapEach(on: database.eventLoop) { newChannel in
+        YouTubeChannel.upsert(newChannel, on: database)
+      }
+
+      // save entries to channels
+      let futureEntries = futureChannels
+        .flatMapEachThrowing { try $0.feedItems() }
+        .map { $0.flatMap { $0 } }
+        .flatMapEach(on: database.eventLoop) { (config) -> EventLoopFuture<FeedItemEntry> in
+          FeedItemEntry.from(upsertOn: database, from: config)
+        }
+
+      // save videos to entries
+      let futYTVideos = futureEntries.mapEachCompact { (entry) -> YoutubeVideo? in
+        entry.youtubeVideo
+      }.flatMapEach(on: database.eventLoop) { newVideo in
+        YoutubeVideo.upsert(newVideo, on: database)
+      }
+
+      // save podcastepisodes to entries
+
+      let futPodEpisodes = futureEntries.mapEachCompact { (entry) -> PodcastEpisode? in
+
+        entry.podcastEpisode
+      }.flatMapEach(on: database.eventLoop) { newEpisode in
+        PodcastEpisode.upsert(newEpisode, on: database)
+      }
+
+      return futYTVideos.and(futYTChannels).and(futPodEpisodes).transform(to: ())
     }
-
-    // save podcastepisodes to entries
-
-    let futPodEpisodes = futureEntries.mapEachCompact { (entry) -> PodcastEpisode? in
-
-      entry.podcastEpisode
-    }.flatMapEach(on: database.eventLoop) { newEpisode in
-      PodcastEpisode.upsert(newEpisode, on: database)
-    }
-
-    return futYTVideos.and(futYTChannels).and(futPodEpisodes).transform(to: ())
+    
   }
 }
