@@ -8,8 +8,8 @@ struct InvalidDatabaseError: Error {}
 
 extension String {
   var plainTextShort: String {
-    var result : String
-    
+    var result: String
+
     result = replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
     guard result.count > 240 else {
       return result
@@ -75,11 +75,14 @@ struct HTMLController {
           .head(
             .title("OrchardNest - Swift Articles and News"),
             .meta(.charset(.utf8)),
-//            <link rel="stylesheet" type="text/css" href="/styles/elusive-icons/css/elusive-icons.min.css"/>
-//                <link rel="stylesheet" type="text/css" href="/styles/normalize.css"/>
-//                <link rel="stylesheet" type="text/css" href="/styles/milligram.css"/>
-//                <link rel="stylesheet" type="text/css" href="/styles/style.css">
-//                <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@100;400;800&display=swap" rel="stylesheet">
+
+            .link(.rel(.appleTouchIcon), .sizes("180x180"), .href("/apple-touch-icon.png")),
+            .link(.rel(.appleTouchIcon), .type("image/png"), .sizes("32x32"), .href("/favicon-32x32.png")),
+            .link(.rel(.appleTouchIcon), .type("image/png"), .sizes("16x16"), .href("/favicon-16x16.png")),
+            .link(.rel(.manifest), .href("/site.webmanifest")),
+            .link(.rel(.maskIcon), .href("/safari-pinned-tab.svg"), .color("#5bbad5")),
+            .meta(.name("msapplication-TileColor"), .content("#2b5797")),
+            .meta(.name("theme-color"), .content("#ffffff")),
             .link(.rel(.stylesheet), .href("/styles/elusive-icons/css/elusive-icons.min.css")),
 
             .link(.rel(.stylesheet), .href("/styles/normalize.css")),
@@ -129,7 +132,9 @@ struct HTMLController {
                         ),
                         .unwrap($0.youtubeID) {
                           .iframe(
-                            .src("https://www.youtube.com/embed/" + $0)
+                            .src("https://www.youtube.com/embed/" + $0),
+                            .allow("accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"),
+                            .allowfullscreen(true)
                           )
 //                        <iframe width="560" height="315" src="https://www.youtube.com/embed/GCQ2JtEuGsI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                         },
