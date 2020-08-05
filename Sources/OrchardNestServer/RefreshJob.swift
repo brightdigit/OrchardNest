@@ -1,8 +1,8 @@
 import Fluent
+import NIO
 import OrchardNestKit
 import Queues
 import Vapor
-import NIO
 
 // Channel, String?, [FeedItem]
 
@@ -16,7 +16,7 @@ struct RefreshJob: Job {
   }
 
   func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
-    //context.application.http.client.configuration = HTTPClient.Configuration(tlsConfiguration: nil, redirectConfiguration: nil, timeout: HTTPClient.Configuration.Timeout(connect: .seconds(20), read: .seconds(20)), proxy: nil, ignoreUncleanSSLShutdown: true, decompression: .enabled(limit: .none))
+    // context.application.http.client.configuration = HTTPClient.Configuration(tlsConfiguration: nil, redirectConfiguration: nil, timeout: HTTPClient.Configuration.Timeout(connect: .seconds(20), read: .seconds(20)), proxy: nil, ignoreUncleanSSLShutdown: true, decompression: .enabled(limit: .none))
 //    context.application.http.client.configuration.ignoreUncleanSSLShutdown = true
 //    context.application.http.client.configuration.decompression = .enabled(limit: .none)
 //    context.application.http.client.configuration.timeout = .init(connect: .seconds(12), read: .seconds(12))
@@ -84,8 +84,8 @@ struct RefreshJob: Job {
         context.logger.info("\(error.localizedDescription)")
       }
     }
-    
-    return database.transaction { (database)  in
+
+    return database.transaction { database in
       let futureFeeds = groupedResults.map { $0.0 }
       let currentChannels = futureFeeds.map { (args) -> [String] in
         args.map {
@@ -99,7 +99,6 @@ struct RefreshJob: Job {
         }))
       }
 
-      
       let futureChannels = futureFeeds.and(currentChannels).map { (args) -> [ChannelFeedItemsConfiguration] in
         context.logger.info("beginning upserting channels...")
         let (feeds, currentChannels) = args
@@ -108,31 +107,30 @@ struct RefreshJob: Job {
           ChannelFeedItemsConfiguration(channels: currentChannels, feedArgs: feedArgs)
         }
       }.flatMap { (configurations) -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-      
+
         database.withConnection { (database) -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-          
-            var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
-            let promise = context.eventLoop.makePromise(of: Void.self)
-          _ = context.eventLoop.scheduleRepeatedAsyncTask(initialDelay: .seconds(1), delay: .nanoseconds(20000000)) { (task : RepeatedTask) -> EventLoopFuture<Void> in
+
+          var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
+          let promise = context.eventLoop.makePromise(of: Void.self)
+          _ = context.eventLoop.scheduleRepeatedAsyncTask(initialDelay: .seconds(1), delay: .nanoseconds(20_000_000)) { (task: RepeatedTask) -> EventLoopFuture<Void> in
             guard results.count < configurations.count else {
               task.cancel(promise: promise)
-              
+
               context.logger.info("finished upserting channels...")
               return context.eventLoop.makeSucceededFuture(())
             }
             let args = configurations[results.count]
             context.logger.info("saving \"\(args.channel.title)\"")
-            let result =  args.channel.save(on: database).transform(to: args).flatMapError { error -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
-              return database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
+            let result = args.channel.save(on: database).transform(to: args).flatMapError { _ -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
+              database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
             }
             results.append(result)
             return result.transform(to: ())
           }
           let finalResults = promise.futureResult.flatMap {
-            return  results.flatten(on: context.eventLoop).mapEachCompact{ $0 }
+            results.flatten(on: context.eventLoop).mapEachCompact { $0 }
           }
-           
-          
+
           return finalResults
         }
       }
@@ -175,6 +173,5 @@ struct RefreshJob: Job {
 
       return futYTVideos.and(futYTChannels).and(futPodEpisodes).transform(to: ())
     }
-    
   }
 }

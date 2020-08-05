@@ -98,8 +98,30 @@ struct HTMLController {
                 .class("row"),
                 .div(
                   .class("column"),
-                  .h1("OrchardNest"),
-                  .p("Swift Articles and News"),
+                  .header(
+                    .nav(
+                      .class("clearfix"),
+                      .ul(
+                        .li(.a(.href("#"), .i(.class("el el-home")), .text(" Home"))),
+                        .li(.a(.href("#"), .i(.class("el el-info-circle")), .text(" About"))),
+                        .li(.a(.href("#"), .i(.class("el el-question-sign")), .text(" Support")))
+                      ),
+                      .ul(.class("float-right"),
+                          .li(.a(.href("#"), .i(.class("el el-github")), .text(" github"))),
+                          .li(.a(.href("#"), .i(.class("el el-twitter")), .text(" twitter"))))
+                    ),
+                    .h1(
+                      .img(
+                        .class("logo"),
+                        .src("/images/logo.svg")
+                      ),
+                      .text("&nbsp;OrchardNest")
+                    ),
+                    .p(
+                      .class("tagline"),
+                      .text("Swift Articles and News")
+                    )
+                  ),
 
                   .ul(
                     .class("articles"),
