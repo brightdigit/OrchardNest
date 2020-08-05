@@ -1,10 +1,6 @@
 import FeedKit
 import Foundation
 
-#if canImport(FoundationNetworking)
-  import FoundationNetworking
-#endif
-
 extension URL {
   func ensureAbsolute(_ baseURL: URL) -> URL {
     guard host == nil else {

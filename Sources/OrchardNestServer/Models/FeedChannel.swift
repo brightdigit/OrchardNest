@@ -1,5 +1,10 @@
 import OrchardNestKit
 import Vapor
+
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 struct EmptyError: Error {}
 
 extension FeedChannel {
