@@ -6,11 +6,97 @@ import Vapor
 
 struct InvalidDatabaseError: Error {}
 
+extension Node where Context == HTML.ListContext {
+  static func li(forEntryItem item: EntryItem) -> Self {
+    return
+      /*
+        <li class="blog-post">
+                      <a class="title" href="#"><h3><i class="el el-website"></i> Swift: Property wrappers</h3></a>
+                      <div class="publishedAt">Published July 31, 2020</div>
+                      <div class="summary">
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Phasellus vestibulum lorem sed risus ultricies tristique nulla aliquet.
+                      </div>
+                      <div class="author">By John Doe at <a href="/sites/">swiftui.com</a></div>
+                    </li>
+        */
+      .li(
+        .class("blog-post"),
+
+        .a(
+          .href(item.url),
+          .class("title"),
+          .h3(
+            .i(.class("el el-\(item.category.elClass)")),
+
+            .text(item.title)
+          )
+        ),
+        .div(
+          .class("publishedAt"),
+          .text(item.publishedAt.description)
+        ),
+        .unwrap(item.youtubeID) {
+          .iframe(
+            .src("https://www.youtube.com/embed/" + $0),
+            .allow("accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"),
+            .allowfullscreen(true)
+          )
+//                        <iframe width="560" height="315" src="https://www.youtube.com/embed/GCQ2JtEuGsI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        },
+        .div(
+          .class("summary"),
+          .text(item.summary.plainTextShort)
+        ),
+        .unwrap(item.podcastEpisodeURL) {
+          .audio(
+            .controls(true),
+            .source(
+              .src($0)
+            )
+          )
+//                        <audio controls>
+//                         <source src="http://media.w3.org/2010/07/bunny/04-Death_Becomes_Fur.mp4"
+//                                 type='audio/mp4'>
+//                         <!-- The next two lines are only executed if the browser doesn't support MP4 files -->
+//                         <source src="http://media.w3.org/2010/07/bunny/04-Death_Becomes_Fur.oga"
+//                                 type='audio/ogg; codecs=vorbis'>
+//                         <!-- The next line will only be executed if the browser doesn't support the <audio> tag-->
+//                         <p>Your user agent does not support the HTML5 Audio element.</p>
+//                        </audio>
+        },
+        .div(
+          .class("author"),
+          .text("By "),
+          .text(item.channel.author),
+          .text(" at "),
+          .a(
+            .href("/channels/" + item.channel.id.uuidString),
+            .text(item.channel.siteURL.host ?? item.channel.title)
+          )
+        ),
+        .div(
+          .class("social-share clearfix"),
+          .text("Share"),
+          .ul(
+            .li(
+              .a(
+                .class("button"),
+                .href("https://twitter.com/intent/tweet?text=\(item.title)\(item.channel.twitterHandle.map { "&via=\($0)" } ?? "")&url=\(item.url)"),
+                .i(.class("el el-twitter")),
+                .text(" Tweet")
+              )
+            )
+          )
+        )
+      )
+  }
+}
+
 extension String {
   var plainTextShort: String {
     var result: String
 
-    result = replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+    result = trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
     guard result.count > 240 else {
       return result
     }
@@ -70,7 +156,7 @@ struct HTMLController {
       .flatMapEachThrowing {
         try EntryItem(entry: $0)
       }
-      .map { (page) -> HTML in
+      .map { (items) -> HTML in
         HTML(
           .head(
             .title("OrchardNest - Swift Articles and News"),
@@ -122,77 +208,26 @@ struct HTMLController {
                       .text("Swift Articles and News")
                     )
                   ),
-
-                  .ul(
-                    .class("articles"),
-                    .forEach(page) {
-                      /*
-                       <li class="blog-post">
-                                     <a class="title" href="#"><h3><i class="el el-website"></i> Swift: Property wrappers</h3></a>
-                                     <div class="publishedAt">Published July 31, 2020</div>
-                                     <div class="summary">
-                                       Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Phasellus vestibulum lorem sed risus ultricies tristique nulla aliquet.
-                                     </div>
-                                     <div class="author">By John Doe at <a href="/sites/">swiftui.com</a></div>
-                                   </li>
-                       */
-                      .li(
-                        .class("blog-post"),
-
-                        .a(
-                          .href($0.url),
-                          .class("title"),
-                          .h3(
-                            .i(.class("el el-\($0.category.elClass)")),
-
-                            .text($0.title)
-                          )
-                        ),
-                        .div(
-                          .class("publishedAt"),
-                          .text($0.publishedAt.description)
-                        ),
-                        .unwrap($0.youtubeID) {
-                          .iframe(
-                            .src("https://www.youtube.com/embed/" + $0),
-                            .allow("accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"),
-                            .allowfullscreen(true)
-                          )
-//                        <iframe width="560" height="315" src="https://www.youtube.com/embed/GCQ2JtEuGsI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        },
-                        .div(
-                          .class("summary"),
-                          .text($0.summary.plainTextShort)
-                        ),
-                        .unwrap($0.podcastEpisodeURL) {
-                          .audio(
-                            .controls(true),
-                            .source(
-                              .src($0)
-                            )
-                          )
-//                        <audio controls>
-//                         <source src="http://media.w3.org/2010/07/bunny/04-Death_Becomes_Fur.mp4"
-//                                 type='audio/mp4'>
-//                         <!-- The next two lines are only executed if the browser doesn't support MP4 files -->
-//                         <source src="http://media.w3.org/2010/07/bunny/04-Death_Becomes_Fur.oga"
-//                                 type='audio/ogg; codecs=vorbis'>
-//                         <!-- The next line will only be executed if the browser doesn't support the <audio> tag-->
-//                         <p>Your user agent does not support the HTML5 Audio element.</p>
-//                        </audio>
-                        },
-                        .div(
-                          .class("author"),
-                          .text("By "),
-                          .text($0.channel.author),
-                          .text(" at "),
-                          .a(
-                            .href("/channels/" + $0.channel.id.uuidString),
-                            .text($0.channel.siteURL.host ?? $0.channel.title)
-                          )
-                        )
+                  .main(
+                    .nav(
+                      .class("posts-filter clearfix"),
+                      .ul(
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-calendar")), .text(" Latest"))),
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-cogs")), .text(" Development"))),
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-bullhorn")), .text(" Marketing"))),
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-brush")), .text(" Design"))),
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-podcast")), .text(" Podcasts"))),
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-video")), .text(" Videos"))),
+                        .li(.a(.class("button"), .href("#"), .i(.class("el el-envelope")), .text(" Newsletters")))
                       )
-                    }
+                    ),
+
+                    .ul(
+                      .class("articles"),
+                      .forEach(items) {
+                        .li(forEntryItem: $0)
+                      }
+                    )
                   )
                 )
               )
