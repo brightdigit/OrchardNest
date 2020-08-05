@@ -86,7 +86,11 @@ struct RefreshJob: Job {
     }
 
     return database.transaction { database in
-      let futureFeeds = groupedResults.map { $0.0 }
+      let futureFeeds = groupedResults.map { $0.0 }.map {
+        configs -> [FeedConfiguration] in
+        let feeds = Dictionary(grouping: configs) { $0.channel.feedUrl }
+        return feeds.compactMap { $0.value.first }
+      }
       let currentChannels = futureFeeds.map { (args) -> [String] in
         args.map {
           $0.channel.feedUrl.absoluteString
