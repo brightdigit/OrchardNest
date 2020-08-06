@@ -10,7 +10,7 @@ struct ChannelStatusMigration: Migration {
     return channel_status_type.create().flatMap { channel_status_type in
 
       database.schema(ChannelStatus.schema)
-        .field("feed_url", .uuid, .identifier(auto: false))
+        .field("feed_url", .string, .identifier(auto: false))
         .field("status", channel_status_type, .required)
         .create()
     }
