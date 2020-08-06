@@ -138,6 +138,9 @@ struct RefreshJob: Job {
           return finalResults
         }
       }
+      
+      //'https://itunes.apple.com/search?term=Contravariance.%20A%20Swift%20Podcast&media=podcast&attribute=titleTerm&limit=1&entity=podcast'
+      
 //      .flatMapEachCompact(on: context.eventLoop) { (args) -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
 //
 //        context.logger.info("saving \"\(args.channel.title)\"")
