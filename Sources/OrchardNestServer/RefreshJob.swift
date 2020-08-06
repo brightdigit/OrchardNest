@@ -8,14 +8,34 @@ struct ApplePodcastResult: Codable {
   let collectionId: Int
 }
 
-struct ApplePodcastRespoonse: Codable {
+struct ApplePodcastResponse: Codable {
   let results: [ApplePodcastResult]
 }
 
-// Channel, String?, [FeedItem]
-
 struct RefreshJob: Job {
   static let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json")!
+
+  static let basePodcastQueryURLComponents = URLComponents(string: """
+  https://itunes.apple.com/search?media=podcast&attribute=titleTerm&limit=1&entity=podcast
+  """)!
+
+  static func queryURL(forPodcastWithTitle title: String) -> URI {
+    var components = Self.basePodcastQueryURLComponents
+    guard var queryItems = components.queryItems else {
+      preconditionFailure()
+    }
+    queryItems.append(URLQueryItem(name: "term", value: title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)))
+    components.queryItems = queryItems
+    return URI(
+      scheme: components.scheme,
+      host: components.host,
+      port: components.port,
+      path: components.path,
+      query: components.query,
+      fragment: components.fragment
+    )
+  }
+
   typealias Payload = RefreshConfiguration
 
   func error(_ context: QueueContext, _ error: Error, _: RefreshConfiguration) -> EventLoopFuture<Void> {
@@ -23,12 +43,10 @@ struct RefreshJob: Job {
     return context.eventLoop.future()
   }
 
+  // swiftlint:disable:next function_body_length
   func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
-    // context.application.http.client.configuration = HTTPClient.Configuration(tlsConfiguration: nil, redirectConfiguration: nil, timeout: HTTPClient.Configuration.Timeout(connect: .seconds(20), read: .seconds(20)), proxy: nil, ignoreUncleanSSLShutdown: true, decompression: .enabled(limit: .none))
-//    context.application.http.client.configuration.ignoreUncleanSSLShutdown = true
-//    context.application.http.client.configuration.decompression = .enabled(limit: .none)
-//    context.application.http.client.configuration.timeout = .init(connect: .seconds(12), read: .seconds(12))
     let database = context.application.db
+    let client = context.application.client
 
     let decoder = JSONDecoder()
 
@@ -94,15 +112,12 @@ struct RefreshJob: Job {
     }
 
     return database.transaction { database in
-      let futureFeeds = groupedResults.map { $0.0 }.map {
-        configs -> [FeedConfiguration] in
+      let futureFeeds = groupedResults.map { $0.0 }.map { configs -> [FeedConfiguration] in
         let feeds = Dictionary(grouping: configs) { $0.channel.feedUrl }
         return feeds.compactMap { $0.value.first }
       }
       let currentChannels = futureFeeds.map { (args) -> [String] in
-        args.map {
-          $0.channel.feedUrl.absoluteString
-        }
+        args.map { $0.channel.feedUrl.absoluteString }
       }.flatMap { feedUrls in
         Channel.query(on: database).filter(\.$feedUrl ~~ feedUrls).with(\.$podcasts).all()
       }.map {
@@ -124,7 +139,10 @@ struct RefreshJob: Job {
 
           var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
           let promise = context.eventLoop.makePromise(of: Void.self)
-          _ = context.eventLoop.scheduleRepeatedAsyncTask(initialDelay: .seconds(1), delay: .nanoseconds(20_000_000)) { (task: RepeatedTask) -> EventLoopFuture<Void> in
+          _ = context.eventLoop.scheduleRepeatedAsyncTask(
+            initialDelay: .seconds(1),
+            delay: .nanoseconds(20_000_000)
+          ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
             guard results.count < configurations.count else {
               task.cancel(promise: promise)
 
@@ -150,26 +168,24 @@ struct RefreshJob: Job {
       let podcastChannels = futureChannels.mapEachCompact { (configuration) -> Channel? in
         let hasPodcastEpisode = (configuration.items.first { $0.audio != nil }) != nil
 
-        guard hasPodcastEpisode || configuration.channel.category.id == "podcasts" else {
+        guard hasPodcastEpisode || configuration.channel.$category.id == "podcasts" else {
           return nil
         }
-        guard configuration.channel.podcasts.count == 0 else {
-          return nil
+        if let podcasts = configuration.channel.$podcasts.value {
+          guard podcasts.count == 0 else {
+            return nil
+          }
         }
         return configuration.channel
       }.flatMapEachCompact(on: context.eventLoop) { (channel) -> EventLoopFuture<PodcastChannel?> in
-
-        context.application.client.get(URI("https://itunes.apple.com/search?term=\(channel.title)&media=podcast&attribute=titleTerm&limit=1&entity=podcast")).flatMapThrowing {
-          try $0.content.decode(ApplePodcastRespoonse.self)
+        client.get(Self.queryURL(forPodcastWithTitle: channel.title)).flatMapThrowing {
+          try $0.content.decode(ApplePodcastResponse.self, using: decoder)
         }.map { (response) -> (PodcastChannel?) in
-          response.results.first.flatMap {
-            result in
+          response.results.first.flatMap { result in
             channel.id.map { ($0, result.collectionId) }
           }.map(PodcastChannel.init)
         }.recover { _ in nil }
-      }.flatMapEach(on: context.eventLoop) {
-        $0.create(on: database)
-      }
+      }.flatMapEach(on: context.eventLoop) { $0.create(on: database) }
 
       // save youtube channels to channels
       let futYTChannels = futureChannels.mapEachCompact { (channel) -> YouTubeChannel? in
