@@ -16,6 +16,9 @@ final class YouTubeChannel: Model {
 
   @Field(key: "youtube_id")
   var youtubeId: String
+
+  @Parent(key: "channel_id")
+  var channel: Channel
 }
 
 extension YouTubeChannel {

@@ -4,6 +4,14 @@ import OrchardNestKit
 import Queues
 import Vapor
 
+struct ApplePodcastResult: Codable {
+  let collectionId: Int
+}
+
+struct ApplePodcastRespoonse: Codable {
+  let results: [ApplePodcastResult]
+}
+
 // Channel, String?, [FeedItem]
 
 struct RefreshJob: Job {
@@ -96,7 +104,7 @@ struct RefreshJob: Job {
           $0.channel.feedUrl.absoluteString
         }
       }.flatMap { feedUrls in
-        Channel.query(on: database).filter(\.$feedUrl ~~ feedUrls).all()
+        Channel.query(on: database).filter(\.$feedUrl ~~ feedUrls).with(\.$podcasts).all()
       }.map {
         Dictionary(uniqueKeysWithValues: ($0.map {
           ($0.feedUrl, $0)
@@ -138,14 +146,30 @@ struct RefreshJob: Job {
           return finalResults
         }
       }
-      
-      //'https://itunes.apple.com/search?term=Contravariance.%20A%20Swift%20Podcast&media=podcast&attribute=titleTerm&limit=1&entity=podcast'
-      
-//      .flatMapEachCompact(on: context.eventLoop) { (args) -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
-//
-//        context.logger.info("saving \"\(args.channel.title)\"")
-//        return args.channel.save(on: database).transform(to: args).flatMapError { _ in database.eventLoop.future(ChannelFeedItemsConfiguration?.none) }
-//      }
+
+      let podcastChannels = futureChannels.mapEachCompact { (configuration) -> Channel? in
+        let hasPodcastEpisode = (configuration.items.first { $0.audio != nil }) != nil
+
+        guard hasPodcastEpisode || configuration.channel.category.id == "podcasts" else {
+          return nil
+        }
+        guard configuration.channel.podcasts.count == 0 else {
+          return nil
+        }
+        return configuration.channel
+      }.flatMapEachCompact(on: context.eventLoop) { (channel) -> EventLoopFuture<PodcastChannel?> in
+
+        context.application.client.get(URI("https://itunes.apple.com/search?term=\(channel.title)&media=podcast&attribute=titleTerm&limit=1&entity=podcast")).flatMapThrowing {
+          try $0.content.decode(ApplePodcastRespoonse.self)
+        }.map { (response) -> (PodcastChannel?) in
+          response.results.first.flatMap {
+            result in
+            channel.id.map { ($0, result.collectionId) }
+          }.map(PodcastChannel.init)
+        }.recover { _ in nil }
+      }.flatMapEach(on: context.eventLoop) {
+        $0.create(on: database)
+      }
 
       // save youtube channels to channels
       let futYTChannels = futureChannels.mapEachCompact { (channel) -> YouTubeChannel? in
@@ -178,7 +202,7 @@ struct RefreshJob: Job {
         PodcastEpisode.upsert(newEpisode, on: database)
       }
 
-      return futYTVideos.and(futYTChannels).and(futPodEpisodes).transform(to: ())
+      return futYTVideos.and(futYTChannels).and(futPodEpisodes).and(podcastChannels).transform(to: ())
     }
   }
 }

@@ -71,6 +71,8 @@ public final class Configurator: ConfiguratorProtocol {
       PodcastEpisodeMigration(),
       YouTubeChannelMigration(),
       YouTubeVideoMigration(),
+      PodcastChannelMigration(),
+      ChannelStatusMigration(),
       LatestEntriesMigration(),
       JobModelMigrate(schema: "queue_jobs")
     ])
