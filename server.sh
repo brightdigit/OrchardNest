@@ -1,7 +1,7 @@
 server.sh
 apt update
 apt -y full-upgrade
-apt -y tmux supervisor postgresql nginx
+apt -y tmux supervisor postgresql nginx zsh
 apt -y install \
           binutils \
           git \
@@ -19,4 +19,7 @@ apt -y install \
           tzdata \
           zlib1g-dev
 
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 # download swift
+
+# create db and user with password
