@@ -333,6 +333,34 @@ struct HTMLController {
       }
   }
 
+  func page(req: Request) -> EventLoopFuture<HTML> {
+    let name = req.parameters.get("page")
+
+    guard name == "about" || name == "support" else {
+      return req.eventLoop.makeFailedFuture(Abort(.notFound))
+    }
+
+    let html = HTML(
+      .head(withSubtitle: "Support and FAQ"),
+      .body(
+        .header(),
+        .main(
+          .class("container"),
+          .filters(),
+          .section(
+            .class("row"),
+            .ul(
+              .class("articles column"),
+              .li("Hello")
+            )
+          )
+        )
+      )
+    )
+
+    return req.eventLoop.future(html)
+  }
+
   func index(req: Request) -> EventLoopFuture<HTML> {
     return Entry.query(on: req.db).join(LatestEntry.self, on: \Entry.$id == \LatestEntry.$id)
       .with(\.$channel) { builder in
@@ -379,5 +407,6 @@ extension HTMLController: RouteCollection {
   func boot(routes: RoutesBuilder) throws {
     routes.get("", use: index)
     routes.get("category", ":category", use: category)
+    routes.get(":page", use: page)
   }
 }
