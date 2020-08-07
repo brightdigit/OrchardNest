@@ -143,6 +143,9 @@ extension Node where Context == HTML.ListContext {
             )
           }
         ),
+//        .unwrap(item.channel.podcastAppleId, {
+//          .text($0.description)
+//        }),
         .div(
           .class("social-share clearfix"),
           .text("Share"),
@@ -253,7 +256,10 @@ struct HTMLController {
   }
 
   func index(req: Request) -> EventLoopFuture<HTML> {
-    return Entry.query(on: req.db).join(LatestEntry.self, on: \Entry.$id == \LatestEntry.$id).with(\.$channel)
+    return Entry.query(on: req.db).join(LatestEntry.self, on: \Entry.$id == \LatestEntry.$id)
+      .with(\.$channel) { builder in
+        builder.with(\.$podcasts).with(\.$youtubeChannels)
+      }
       .join(parent: \.$channel)
       .with(\.$podcastEpisodes)
       .join(children: \.$podcastEpisodes, method: .left)

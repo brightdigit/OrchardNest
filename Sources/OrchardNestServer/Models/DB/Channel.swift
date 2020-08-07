@@ -52,6 +52,9 @@ final class Channel: Model {
 
   @Children(for: \.$channel)
   var podcasts: [PodcastChannel]
+
+  @Children(for: \.$channel)
+  var youtubeChannels: [YouTubeChannel]
 }
 
 extension Channel: Validatable {
