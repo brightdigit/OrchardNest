@@ -1,5 +1,6 @@
 import Fluent
 import FluentSQL
+import Ink
 import OrchardNestKit
 import Plot
 import Vapor
@@ -282,6 +283,12 @@ extension EntryCategory {
 }
 
 struct HTMLController {
+  let views: [String: Markdown]
+
+  init(views: [String: Markdown]?) {
+    self.views = views ?? [String: Markdown]()
+  }
+
   func category(req: Request) throws -> EventLoopFuture<HTML> {
     guard let category = req.parameters.get("category") else {
       throw Abort(.notFound)
@@ -334,9 +341,11 @@ struct HTMLController {
   }
 
   func page(req: Request) -> EventLoopFuture<HTML> {
-    let name = req.parameters.get("page")
+    guard let name = req.parameters.get("page") else {
+      return req.eventLoop.makeFailedFuture(Abort(.notFound))
+    }
 
-    guard name == "about" || name == "support" else {
+    guard let view = views[name] else {
       return req.eventLoop.makeFailedFuture(Abort(.notFound))
     }
 
@@ -349,10 +358,7 @@ struct HTMLController {
           .filters(),
           .section(
             .class("row"),
-            .ul(
-              .class("articles column"),
-              .li("Hello")
-            )
+            .raw(view.html)
           )
         )
       )
