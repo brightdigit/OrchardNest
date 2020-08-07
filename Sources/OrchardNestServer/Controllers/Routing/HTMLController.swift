@@ -7,6 +7,82 @@ import Vapor
 struct InvalidDatabaseError: Error {}
 
 extension Node where Context == HTML.BodyContext {
+  static func playerForPodcast(withAppleId appleId: Int) -> Self {
+    .ul(
+      .class("podcast-players"),
+      .li(
+        .a(
+          .href("https://podcasts.apple.com/podcast/id\(appleId)"),
+          .img(
+            .src("/images/podcast-players/apple/icon.svg")
+          ),
+          .div(
+            .div(
+              .text("Listen on")
+            ),
+            .div(
+              .class("name"),
+              .text("Apple Podcasts")
+            )
+          )
+        )
+      ),
+      .li(
+        .a(
+          .href("https://overcast.fm/itunes\(appleId)"),
+          .img(
+            .src("/images/podcast-players/overcast/icon.svg")
+          ),
+          .div(
+            .div(
+              .text("Listen on")
+            ),
+            .div(
+              .class("name"),
+              .text("Overcast")
+            )
+          )
+        )
+      ),
+      .li(
+        .a(
+          .href("https://castro.fm/itunes/\(appleId)"),
+          .img(
+            .src("/images/podcast-players/castro/icon.svg")
+          ),
+          .div(
+            .div(
+              .text("Listen on")
+            ),
+            .div(
+              .class("name"),
+              .text("Castro")
+            )
+          )
+        )
+      ),
+      .li(
+        .a(
+          .href("https://podcasts.apple.com/podcast/id\(appleId)"),
+          .img(
+            .src("/images/podcast-players/pocketcasts/icon.svg")
+          ),
+          .div(
+            .div(
+              .text("Listen on")
+            ),
+            .div(
+              .class("name"),
+              .text("Pocket Casts")
+            )
+          )
+        )
+      )
+    )
+  }
+}
+
+extension Node where Context == HTML.BodyContext {
   static func filters() -> Self {
     .nav(
       .class("posts-filter clearfix row"),
@@ -37,8 +113,8 @@ extension Node where Context == HTML.BodyContext {
           .li(.a(.href("/support"), .i(.class("el el-question-sign")), .text(" Support")))
         ),
         .ul(.class("float-right column"),
-            .li(.a(.href("https://github.com/brightdigit/OrchardNest"), .i(.class("el el-github")), .text(" github"))),
-            .li(.a(.href("https://twitter.com/OrchardNest"), .i(.class("el el-twitter")), .text(" twitter"))))
+            .li(.a(.href("https://github.com/brightdigit/OrchardNest"), .i(.class("el el-github")), .text(" GitHub"))),
+            .li(.a(.href("https://twitter.com/OrchardNest"), .i(.class("el el-twitter")), .text(" Twitter"))))
       ),
       .div(
         .class("row"),
@@ -125,6 +201,9 @@ extension Node where Context == HTML.ListContext {
             )
           )
         },
+        .unwrap(item.channel.podcastAppleId) {
+          .playerForPodcast(withAppleId: $0)
+        },
         .div(
           .class("author"),
           .text("By "),
@@ -143,9 +222,6 @@ extension Node where Context == HTML.ListContext {
             )
           }
         ),
-//        .unwrap(item.channel.podcastAppleId, {
-//          .text($0.description)
-//        }),
         .div(
           .class("social-share clearfix"),
           .text("Share"),
@@ -212,7 +288,9 @@ struct HTMLController {
     }
 
     return Entry.query(on: req.db)
-      .with(\.$channel)
+      .with(\.$channel) { builder in
+        builder.with(\.$podcasts).with(\.$youtubeChannels)
+      }
       .join(parent: \.$channel)
       .with(\.$podcastEpisodes)
       .join(children: \.$podcastEpisodes, method: .left)
