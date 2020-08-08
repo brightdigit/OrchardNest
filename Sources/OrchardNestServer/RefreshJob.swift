@@ -52,14 +52,10 @@ struct RefreshJob: Job {
 
     let sites: [LanguageContent]
     context.logger.info("downloading blog list...")
-    do {
-      let data = try Data(contentsOf: Self.url)
-      sites = try decoder.decode([LanguageContent].self, from: data)
-    } catch {
-      return context.eventLoop.future(error: error)
-    }
-
-    let siteCatalogMap = SiteCatalogMap(sites: sites)
+    
+    return context.application.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { (response) -> [LanguageContent] in
+      try response.content.decode([LanguageContent].self, using: decoder)
+    }.map(SiteCatalogMap.init).flatMap { (siteCatalogMap) -> EventLoopFuture<Void> in
 
     let languages = siteCatalogMap.languages
     let categories = siteCatalogMap.categories
@@ -252,6 +248,7 @@ struct RefreshJob: Job {
       }
 
       return futYTVideos.and(futYTChannels).and(futPodEpisodes).and(podcastChannels).transform(to: ())
+    }
     }
   }
 }
