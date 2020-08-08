@@ -76,20 +76,53 @@ struct RefreshJob: Job {
     let futureFeedResults: EventLoopFuture<[FeedResult]>
     futureFeedResults = langMap.and(catMap).flatMap { (maps) -> EventLoopFuture<[FeedResult]> in
       context.logger.info("downloading feeds...")
+      
       let (langMap, catMap) = maps
-      return organizedSites.map { orgSite in
-        FeedChannel.parseSite(orgSite, using: context.application.client, on: context.eventLoop)
-          .map { result in
-            result.flatMap { FeedConfiguration.from(
-              categorySlug: orgSite.categorySlug,
-              languageCode: orgSite.languageCode,
-              channel: $0,
-              langMap: langMap,
-              catMap: catMap
-            )
-            }
-          }
-      }.flatten(on: context.eventLoop)
+      var results = [EventLoopFuture<FeedResult>]()
+      let promise = context.eventLoop.makePromise(of: Void.self)
+      _ = context.eventLoop.scheduleRepeatedAsyncTask(
+        initialDelay: .seconds(1),
+        delay: .nanoseconds(20_000_000)
+      ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
+        guard results.count < organizedSites.count else {
+          task.cancel(promise: promise)
+
+          context.logger.info("finished downloading feeds...")
+          return context.eventLoop.makeSucceededFuture(())
+        }
+        let args = organizedSites[results.count]
+        context.logger.info("downloading \"\(args.site.feed_url)\"")
+        let result = FeedChannel.parseSite(args, using: client, on: context.eventLoop).map { result in
+                 return   result.flatMap { FeedConfiguration.from(
+                      categorySlug: args.categorySlug,
+                      languageCode: args.languageCode,
+                      channel: $0,
+                      langMap: langMap,
+                      catMap: catMap
+                    )
+                    }
+        }
+        results.append(result)
+        return result.transform(to: ())
+      }
+      let finalResults = promise.futureResult.flatMap {
+        results.flatten(on: context.eventLoop)
+      }
+
+      return finalResults
+//      return organizedSites.map { orgSite in
+//        FeedChannel.parseSite(orgSite, using: context.application.client, on: context.eventLoop)
+//          .map { result in
+//            result.flatMap { FeedConfiguration.from(
+//              categorySlug: orgSite.categorySlug,
+//              languageCode: orgSite.languageCode,
+//              channel: $0,
+//              langMap: langMap,
+//              catMap: catMap
+//            )
+//            }
+//          }
+//      }.flatten(on: context.eventLoop)
     }
 
     let groupedResults = futureFeedResults.map { results -> ([FeedConfiguration], [FeedError]) in

@@ -121,8 +121,6 @@ public final class Configurator: ConfiguratorProtocol {
       parser.parse
     )
 
-    debugPrint(pages)
-
     try app.register(collection: HTMLController(views: pages))
     try api.grouped("entires").register(collection: EntryController())
 
