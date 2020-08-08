@@ -1,4 +1,3 @@
-server.sh
 apt update
 apt -y full-upgrade
 apt -y tmux supervisor postgresql nginx zsh
@@ -20,6 +19,10 @@ apt -y install \
           zlib1g-dev
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+curl https://swift.org/builds/swift-5.2.5-release/ubuntu2004/swift-5.2.5-RELEASE/swift-5.2.5-RELEASE-ubuntu20.04.tar.gz | tar xzf - -C /usr/share/
+mv /usr/share/swift-5.2.5-RELEASE-ubuntu20.04 /usr/share/swift
+export PATH=/usr/share/swift/usr/bin:"${PATH}"
+
 # download swift
 
 # create db and user with password

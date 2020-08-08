@@ -12,7 +12,14 @@ struct ApplePodcastResponse: Codable {
   let results: [ApplePodcastResult]
 }
 
-struct RefreshJob: Job {
+struct RefreshJob: ScheduledJob, Job {
+  func run(context: QueueContext) -> EventLoopFuture<Void> {
+    context.queue.dispatch(
+      RefreshJob.self,
+      RefreshConfiguration()
+    )
+  }
+
   static let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json")!
 
   static let basePodcastQueryURLComponents = URLComponents(string: """
@@ -50,7 +57,6 @@ struct RefreshJob: Job {
 
     let decoder = JSONDecoder()
 
-    let sites: [LanguageContent]
     context.logger.info("downloading blog list...")
 
     return context.application.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { (response) -> [LanguageContent] in
