@@ -1,7 +1,6 @@
 apt update
 apt -y full-upgrade
-apt -y tmux supervisor postgresql nginx zsh
-apt -y install \
+apt -y install tmux supervisor postgresql nginx zsh \
           binutils \
           git \
           gnupg2 \
@@ -26,3 +25,13 @@ export PATH=/usr/share/swift/usr/bin:"${PATH}"
 # download swift
 
 # create db and user with password
+
+
+# as orchardnest user
+git clone https://github.com/brightdigit/OrchardNest.git app
+swift build -c release --enable-test-discovery
+
+sudo -u postgres createuser orchardnest
+sudo -u postgres createdb orchardnest
+sudo -u postgres psql -c "alter user orchardnest with encrypted password '12345';"
+sudo -u postgres psql -c "grant all privileges on database orchardnest to orchardnest;"
