@@ -65,9 +65,11 @@ extension Channel: Validatable {
   }
 }
 
-extension Channel {
-  var base32ID: String? {
-    return id.map(Array.init(uuid:)).map { Data($0) }?.base32EncodedString()
+extension UUID {
+  var base32Encoded: String {
+    // swiftlint:disable:next force_cast
+    let bytes = Mirror(reflecting: uuid).children.map { $0.value as! UInt8 }
+    return Data(bytes).base32EncodedString()
   }
 }
 
