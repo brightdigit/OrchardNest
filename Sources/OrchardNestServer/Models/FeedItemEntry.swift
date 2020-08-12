@@ -34,7 +34,7 @@ extension FeedItemEntry {
     guard let id = entry.id, let audioURL = feedItem.audio else {
       return nil
     }
-    return PodcastEpisode(entryId: id, audioURL: audioURL.absoluteString, duration: feedItem.duration)
+    return PodcastEpisode(entryId: id, audioURL: audioURL.absoluteString, seconds: feedItem.duration.map(Int.init))
   }
 
   var youtubeVideo: YoutubeVideo? {

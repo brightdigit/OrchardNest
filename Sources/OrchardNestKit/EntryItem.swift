@@ -18,16 +18,16 @@ public enum EntryCategoryType: String, Codable {
 struct EntryCategoryCodable: Codable {
   let type: EntryCategoryType
   let value: String?
-  let duration: TimeInterval?
+  let seconds: Int?
 }
 
 public enum EntryCategory: Codable {
-  public init(podcastEpisodeAtURL url: URL, withDuration duration: TimeInterval?) {
-    self = .podcasts(url, duration)
+  public init(podcastEpisodeAtURL url: URL, withSeconds seconds: Int?) {
+    self = .podcasts(url, seconds)
   }
 
-  public init(youtubeVideoWithID id: String, withDuration duration: TimeInterval?) {
-    self = .youtube(id, duration)
+  public init(youtubeVideoWithID id: String, withSeconds seconds: Int?) {
+    self = .youtube(id, seconds)
   }
 
   public init(type: EntryCategoryType) throws {
@@ -57,17 +57,17 @@ public enum EntryCategory: Codable {
       guard let url = codable.value.flatMap(URL.init(string:)) else {
         throw DecodingError.valueNotFound(URL.self, DecodingError.Context(codingPath: [], debugDescription: ""))
       }
-      self = .podcasts(url, codable.duration)
+      self = .podcasts(url, codable.seconds)
     case .youtube:
       guard let id = codable.value else {
         throw DecodingError.valueNotFound(URL.self, DecodingError.Context(codingPath: [], debugDescription: ""))
       }
-      self = .youtube(id, codable.duration)
+      self = .youtube(id, codable.seconds)
     }
   }
 
   public func encode(to encoder: Encoder) throws {
-    let codable = EntryCategoryCodable(type: type, value: value, duration: duration)
+    let codable = EntryCategoryCodable(type: type, value: value, seconds: seconds)
     try codable.encode(to: encoder)
   }
 
@@ -76,9 +76,9 @@ public enum EntryCategory: Codable {
   case development
   case marketing
   case newsletters
-  case podcasts(URL, TimeInterval?)
+  case podcasts(URL, Int?)
   case updates
-  case youtube(String, TimeInterval?)
+  case youtube(String, Int?)
 
   public var type: EntryCategoryType {
     switch self {
@@ -101,10 +101,10 @@ public enum EntryCategory: Codable {
     }
   }
 
-  var duration: TimeInterval? {
+  var seconds: Int? {
     switch self {
-    case let .podcasts(_, duration): return duration
-    case let .youtube(_, duration): return duration
+    case let .podcasts(_, seconds): return seconds
+    case let .youtube(_, seconds): return seconds
     default: return nil
     }
   }
@@ -143,12 +143,12 @@ public struct EntryItem: Codable {
 }
 
 public extension EntryItem {
-  var duration: TimeInterval? {
-    if case let .youtube(_, duration) = category {
-      return duration
+  var seconds: Int? {
+    if case let .youtube(_, seconds) = category {
+      return seconds
     } else
-    if case let .podcasts(_, duration) = category {
-      return duration
+    if case let .podcasts(_, seconds) = category {
+      return seconds
     }
     return nil
   }

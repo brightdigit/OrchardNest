@@ -20,9 +20,9 @@ extension Entry {
     }
 
     if let url = podcastEpisode.flatMap({ URL(string: $0.audioURL) }) {
-      return .podcasts(url, podcastEpisode?.duration)
+      return .podcasts(url, podcastEpisode?.seconds)
     } else if let youtubeID = youtubeVideo?.youtubeId {
-      return .youtube(youtubeID, podcastEpisode?.duration)
+      return .youtube(youtubeID, podcastEpisode?.seconds)
     } else {
       return try EntryCategory(type: category)
     }

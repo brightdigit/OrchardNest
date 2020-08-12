@@ -244,6 +244,13 @@ struct RefreshJob: ScheduledJob, Job {
             FeedItemEntry.from(upsertOn: database, from: config)
           }
 
+//        curl \
+//          '  'https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=Ks-_Mh1QhMc&access_token=XXX&fields=items%2Fid%2Citems%2FcontentDetails%2Fduration&key=[YOUR_API_KEY]' \
+      
+//          --header 'Authorization: Bearer [YOUR_ACCESS_TOKEN]' \
+//          --header 'Accept: application/json' \
+//          --compressed
+        
         // save videos to entries
         let futYTVideos = futureEntries.mapEachCompact { (entry) -> YoutubeVideo? in
           entry.youtubeVideo
