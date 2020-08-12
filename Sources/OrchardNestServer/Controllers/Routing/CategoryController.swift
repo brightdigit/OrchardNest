@@ -18,7 +18,6 @@ struct CategoryController {
         }
       }
   }
-  
 }
 
 extension CategoryController: RouteCollection {

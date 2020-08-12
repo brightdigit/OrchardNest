@@ -74,7 +74,7 @@ public struct FeedChannel: Codable {
           url: url,
           image: image,
           ytId: nil,
-          audio: nil,
+          audio: nil, duration: nil,
           published: published
         )
       } ?? [FeedItem]()
@@ -128,6 +128,7 @@ public struct FeedChannel: Codable {
           image: image,
           ytId: nil,
           audio: enclosure?.audioURL,
+          duration: item.iTunes?.iTunesDuration,
           published: published
         )
       } ?? [FeedItem]()
@@ -193,7 +194,7 @@ public struct FeedChannel: Codable {
           url: url,
           image: media?.compactMap { $0.imageURL }.first,
           ytId: ytId,
-          audio: media?.compactMap { $0.audioURL }.first,
+          audio: media?.compactMap { $0.audioURL }.first, duration: nil,
           published: published
         )
       } ?? [FeedItem]()

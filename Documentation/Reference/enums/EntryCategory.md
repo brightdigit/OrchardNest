@@ -37,10 +37,10 @@ case marketing
 case newsletters
 ```
 
-### `podcasts(_:)`
+### `podcasts(_:_:)`
 
 ```swift
-case podcasts(URL)
+case podcasts(URL, TimeInterval?)
 ```
 
 ### `updates`
@@ -49,10 +49,10 @@ case podcasts(URL)
 case updates
 ```
 
-### `youtube(_:)`
+### `youtube(_:_:)`
 
 ```swift
-case youtube(String)
+case youtube(String, TimeInterval?)
 ```
 
 ## Properties
@@ -63,16 +63,16 @@ public var type: EntryCategoryType
 ```
 
 ## Methods
-### `init(podcastEpisodeAtURL:)`
+### `init(podcastEpisodeAtURL:withDuration:)`
 
 ```swift
-public init(podcastEpisodeAtURL url: URL)
+public init(podcastEpisodeAtURL url: URL, withDuration duration: TimeInterval?)
 ```
 
-### `init(youtubeVideoWithID:)`
+### `init(youtubeVideoWithID:withDuration:)`
 
 ```swift
-public init(youtubeVideoWithID id: String)
+public init(youtubeVideoWithID id: String, withDuration duration: TimeInterval?)
 ```
 
 ### `init(type:)`

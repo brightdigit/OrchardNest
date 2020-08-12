@@ -331,7 +331,7 @@ struct HTMLController {
   init(views: [String: Markdown]?) {
     self.views = views ?? [String: Markdown]()
   }
-  
+
   init(markdownDirectory: String) {
     let parser = MarkdownParser()
 
@@ -341,9 +341,9 @@ struct HTMLController {
       (try? String(contentsOf: url)).map { (url.deletingPathExtension().lastPathComponent, $0) }
     }
 
-    self.views = textPairs.map(Dictionary.init(uniqueKeysWithValues:))?.mapValues(
+    views = textPairs.map(Dictionary.init(uniqueKeysWithValues:))?.mapValues(
       parser.parse
-    ) ?? [String : Markdown]()
+    ) ?? [String: Markdown]()
   }
 
   func category(req: Request) throws -> EventLoopFuture<HTML> {

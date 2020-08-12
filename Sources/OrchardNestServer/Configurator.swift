@@ -106,7 +106,7 @@ public final class Configurator: ConfiguratorProtocol {
     //   services.register(wss, as: WebSocketServer.self)
 
     let api = app.grouped("api", "v1")
-    
+
     try app.register(collection: HTMLController(markdownDirectory: app.directory.viewsDirectory))
     try api.grouped("entires").register(collection: EntryController())
     try api.grouped("channels").register(collection: ChannelController())

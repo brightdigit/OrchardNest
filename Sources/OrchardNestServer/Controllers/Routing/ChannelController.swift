@@ -7,7 +7,7 @@ struct ChannelController {
     guard let channel = req.parameters.get("channel").flatMap({ $0.base32UUID }) else {
       return req.eventLoop.makeFailedFuture(Abort(.notFound))
     }
-    
+
     return EntryController.entries(from: req.db)
       .filter(Channel.self, \Channel.$id == channel)
       .paginate(for: req)
@@ -17,7 +17,6 @@ struct ChannelController {
         }
       }
   }
-  
 }
 
 extension ChannelController: RouteCollection {

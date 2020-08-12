@@ -20,9 +20,9 @@ extension Entry {
     }
 
     if let url = podcastEpisode.flatMap({ URL(string: $0.audioURL) }) {
-      return .podcasts(url)
+      return .podcasts(url, podcastEpisode?.duration)
     } else if let youtubeID = youtubeVideo?.youtubeId {
-      return .youtube(youtubeID)
+      return .youtube(youtubeID, podcastEpisode?.duration)
     } else {
       return try EntryCategory(type: category)
     }
@@ -60,19 +60,18 @@ extension EntryItem {
 }
 
 struct EntryController {
-  static func entries (from database: Database) -> QueryBuilder<Entry> {
-    return  Entry.query(on: database).with(\.$channel) { builder in
-        builder.with(\.$podcasts).with(\.$youtubeChannels)
-      }
-      .join(parent: \.$channel)
-      .with(\.$podcastEpisodes)
-      .join(children: \.$podcastEpisodes, method: .left)
-      .with(\.$youtubeVideos)
-      .join(children: \.$youtubeVideos, method: .left)
+  static func entries(from database: Database) -> QueryBuilder<Entry> {
+    return Entry.query(on: database).with(\.$channel) { builder in
+      builder.with(\.$podcasts).with(\.$youtubeChannels)
+    }
+    .join(parent: \.$channel)
+    .with(\.$podcastEpisodes)
+    .join(children: \.$podcastEpisodes, method: .left)
+    .with(\.$youtubeVideos)
+    .join(children: \.$youtubeVideos, method: .left)
     .sort(\.$publishedAt, .descending)
-    
   }
-  
+
   func list(req: Request) -> EventLoopFuture<Page<EntryItem>> {
     return Self.entries(from: req.db)
       .paginate(for: req)
@@ -82,7 +81,7 @@ struct EntryController {
         }
       }
   }
-  
+
   func latest(req: Request) -> EventLoopFuture<Page<EntryItem>> {
     return Self.entries(from: req.db)
       .join(LatestEntry.self, on: \Entry.$id == \LatestEntry.$id)

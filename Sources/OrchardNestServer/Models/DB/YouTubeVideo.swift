@@ -17,6 +17,9 @@ final class YoutubeVideo: Model {
   @Field(key: "youtube_id")
   var youtubeId: String
 
+  @OptionalField(key: "duration")
+  var duration: TimeInterval?
+
   @Parent(key: "entry_id")
   var entry: Entry
 }

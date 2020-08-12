@@ -18,15 +18,16 @@ public enum EntryCategoryType: String, Codable {
 struct EntryCategoryCodable: Codable {
   let type: EntryCategoryType
   let value: String?
+  let duration: TimeInterval?
 }
 
 public enum EntryCategory: Codable {
-  public init(podcastEpisodeAtURL url: URL) {
-    self = .podcasts(url)
+  public init(podcastEpisodeAtURL url: URL, withDuration duration: TimeInterval?) {
+    self = .podcasts(url, duration)
   }
 
-  public init(youtubeVideoWithID id: String) {
-    self = .youtube(id)
+  public init(youtubeVideoWithID id: String, withDuration duration: TimeInterval?) {
+    self = .youtube(id, duration)
   }
 
   public init(type: EntryCategoryType) throws {
@@ -56,17 +57,17 @@ public enum EntryCategory: Codable {
       guard let url = codable.value.flatMap(URL.init(string:)) else {
         throw DecodingError.valueNotFound(URL.self, DecodingError.Context(codingPath: [], debugDescription: ""))
       }
-      self = .podcasts(url)
+      self = .podcasts(url, codable.duration)
     case .youtube:
       guard let id = codable.value else {
         throw DecodingError.valueNotFound(URL.self, DecodingError.Context(codingPath: [], debugDescription: ""))
       }
-      self = .youtube(id)
+      self = .youtube(id, codable.duration)
     }
   }
 
   public func encode(to encoder: Encoder) throws {
-    let codable = EntryCategoryCodable(type: type, value: value)
+    let codable = EntryCategoryCodable(type: type, value: value, duration: duration)
     try codable.encode(to: encoder)
   }
 
@@ -75,9 +76,9 @@ public enum EntryCategory: Codable {
   case development
   case marketing
   case newsletters
-  case podcasts(URL)
+  case podcasts(URL, TimeInterval?)
   case updates
-  case youtube(String)
+  case youtube(String, TimeInterval?)
 
   public var type: EntryCategoryType {
     switch self {
@@ -94,8 +95,16 @@ public enum EntryCategory: Codable {
 
   var value: String? {
     switch self {
-    case let .podcasts(url): return url.absoluteString
-    case let .youtube(id): return id
+    case let .podcasts(url, _): return url.absoluteString
+    case let .youtube(id, _): return id
+    default: return nil
+    }
+  }
+
+  var duration: TimeInterval? {
+    switch self {
+    case let .podcasts(_, duration): return duration
+    case let .youtube(_, duration): return duration
     default: return nil
     }
   }
@@ -134,15 +143,25 @@ public struct EntryItem: Codable {
 }
 
 public extension EntryItem {
+  var duration: TimeInterval? {
+    if case let .youtube(_, duration) = category {
+      return duration
+    } else
+    if case let .podcasts(_, duration) = category {
+      return duration
+    }
+    return nil
+  }
+
   var podcastEpisodeURL: URL? {
-    if case let .podcasts(url) = category {
+    if case let .podcasts(url, _) = category {
       return url
     }
     return nil
   }
 
   var youtubeID: String? {
-    if case let .youtube(id) = category {
+    if case let .youtube(id, _) = category {
       return id
     }
     return nil
