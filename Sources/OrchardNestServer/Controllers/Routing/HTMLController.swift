@@ -94,12 +94,12 @@ extension Node where Context == HTML.BodyContext {
       .ul(
         .class("column"),
         .li(.a(.class("button"), .href("/"), .i(.class("el el-calendar")), .text(" Latest"))),
-        .li(.a(.class("button"), .href("/category/development"), .i(.class("el el-cogs")), .text(" Development"))),
-        .li(.a(.class("button"), .href("/category/marketing"), .i(.class("el el-bullhorn")), .text(" Marketing"))),
-        .li(.a(.class("button"), .href("/category/design"), .i(.class("el el-brush")), .text(" Design"))),
-        .li(.a(.class("button"), .href("/category/podcasts"), .i(.class("el el-podcast")), .text(" Podcasts"))),
-        .li(.a(.class("button"), .href("/category/youtube"), .i(.class("el el-video")), .text(" YouTube"))),
-        .li(.a(.class("button"), .href("/category/newsletters"), .i(.class("el el-envelope")), .text(" Newsletters")))
+        .li(.a(.class("button"), .href("/categories/development"), .i(.class("el el-cogs")), .text(" Development"))),
+        .li(.a(.class("button"), .href("/categories/marketing"), .i(.class("el el-bullhorn")), .text(" Marketing"))),
+        .li(.a(.class("button"), .href("/categories/design"), .i(.class("el el-brush")), .text(" Design"))),
+        .li(.a(.class("button"), .href("/categories/podcasts"), .i(.class("el el-podcast")), .text(" Podcasts"))),
+        .li(.a(.class("button"), .href("/categories/youtube"), .i(.class("el el-video")), .text(" YouTube"))),
+        .li(.a(.class("button"), .href("/categories/newsletters"), .i(.class("el el-envelope")), .text(" Newsletters")))
       )
     )
   }
@@ -327,8 +327,23 @@ struct HTMLController {
     return formatter
   }()
 
+  @available(*, deprecated)
   init(views: [String: Markdown]?) {
     self.views = views ?? [String: Markdown]()
+  }
+  
+  init(markdownDirectory: String) {
+    let parser = MarkdownParser()
+
+    let textPairs = FileManager.default.enumerator(atPath: markdownDirectory)?.compactMap { $0 as? String }.map { path in
+      URL(fileURLWithPath: markdownDirectory + path)
+    }.compactMap { url in
+      (try? String(contentsOf: url)).map { (url.deletingPathExtension().lastPathComponent, $0) }
+    }
+
+    self.views = textPairs.map(Dictionary.init(uniqueKeysWithValues:))?.mapValues(
+      parser.parse
+    ) ?? [String : Markdown]()
   }
 
   func category(req: Request) throws -> EventLoopFuture<HTML> {
@@ -336,18 +351,9 @@ struct HTMLController {
       throw Abort(.notFound)
     }
 
-    return Entry.query(on: req.db)
-      .with(\.$channel) { builder in
-        builder.with(\.$podcasts).with(\.$youtubeChannels)
-      }
-      .join(parent: \.$channel)
-      .with(\.$podcastEpisodes)
-      .join(children: \.$podcastEpisodes, method: .left)
-      .with(\.$youtubeVideos)
-      .join(children: \.$youtubeVideos, method: .left)
+    return EntryController.entries(from: req.db)
       .filter(Channel.self, \Channel.$category.$id == category)
       .filter(Channel.self, \Channel.$language.$id == "en")
-      .sort(\.$publishedAt, .descending)
       .limit(32)
       .all()
       .flatMapThrowing { (entries) -> [Entry] in
@@ -363,6 +369,7 @@ struct HTMLController {
         HTML(
           .head(withSubtitle: "Swift Articles and News", andDescription: "Swift Articles and News of Category \(category)"),
           .body(
+            .class("category \(category)"),
             .header(),
             .main(
               .class("container"),
@@ -414,17 +421,8 @@ struct HTMLController {
       throw Abort(.notFound)
     }
 
-    return Entry.query(on: req.db)
-      .with(\.$channel) { builder in
-        builder.with(\.$podcasts).with(\.$youtubeChannels)
-      }
-      .join(parent: \.$channel)
-      .with(\.$podcastEpisodes)
-      .join(children: \.$podcastEpisodes, method: .left)
-      .with(\.$youtubeVideos)
-      .join(children: \.$youtubeVideos, method: .left)
+    return EntryController.entries(from: req.db)
       .filter(Channel.self, \Channel.$id == channel)
-      .sort(\.$publishedAt, .descending)
       .limit(32)
       .all()
       .flatMapEachThrowing {
@@ -454,18 +452,10 @@ struct HTMLController {
   }
 
   func index(req: Request) -> EventLoopFuture<HTML> {
-    return Entry.query(on: req.db).join(LatestEntry.self, on: \Entry.$id == \LatestEntry.$id)
-      .with(\.$channel) { builder in
-        builder.with(\.$podcasts).with(\.$youtubeChannels)
-      }
-      .join(parent: \.$channel)
-      .with(\.$podcastEpisodes)
-      .join(children: \.$podcastEpisodes, method: .left)
-      .with(\.$youtubeVideos)
-      .join(children: \.$youtubeVideos, method: .left)
+    return EntryController.entries(from: req.db)
+      .join(LatestEntry.self, on: \Entry.$id == \LatestEntry.$id)
       .filter(Channel.self, \Channel.$category.$id != "updates")
       .filter(Channel.self, \Channel.$language.$id == "en")
-      .sort(\.$publishedAt, .descending)
       .limit(32)
       .all()
       .flatMapEachThrowing {
@@ -498,7 +488,7 @@ struct HTMLController {
 extension HTMLController: RouteCollection {
   func boot(routes: RoutesBuilder) throws {
     routes.get("", use: index)
-    routes.get("category", ":category", use: category)
+    routes.get("categories", ":category", use: category)
     routes.get(":page", use: page)
     routes.get("channels", ":channel", use: channel)
   }
