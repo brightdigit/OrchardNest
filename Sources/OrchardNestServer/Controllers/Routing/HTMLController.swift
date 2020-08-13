@@ -493,6 +493,10 @@ struct HTMLController {
         )
       }
   }
+
+  func sitemap(req: Request) -> EventLoopFuture<SiteMap> {
+    return req.eventLoop.makeSucceededFuture(SiteMap())
+  }
 }
 
 extension HTMLController: RouteCollection {
@@ -501,5 +505,6 @@ extension HTMLController: RouteCollection {
     routes.get("category", ":category", use: category)
     routes.get(":page", use: page)
     routes.get("channels", ":channel", use: channel)
+    routes.get("sitemap.xml", use: sitemap)
   }
 }
