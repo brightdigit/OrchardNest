@@ -1,15 +1,6 @@
 import FeedKit
 import Foundation
 
-extension URL {
-  func ensureAbsolute(_ baseURL: URL) -> URL {
-    guard host == nil else {
-      return self
-    }
-    return URL(string: relativeString, relativeTo: baseURL) ?? self
-  }
-}
-
 public struct FeedChannel: Codable {
   static let youtubeImgBaseURL = URL(string: "https://img.youtube.com/vi/")!
   public static func imageURL(fromYoutubeId ytId: String) -> URL {

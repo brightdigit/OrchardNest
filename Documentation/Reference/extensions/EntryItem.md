@@ -6,10 +6,10 @@ public extension EntryItem
 ```
 
 ## Properties
-### `duration`
+### `seconds`
 
 ```swift
-var duration: TimeInterval?
+var seconds: Int?
 ```
 
 ### `podcastEpisodeURL`
