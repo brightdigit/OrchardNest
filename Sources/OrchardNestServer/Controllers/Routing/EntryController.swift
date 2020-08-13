@@ -19,10 +19,10 @@ extension Entry {
       return .development
     }
 
-    if let url = podcastEpisode.flatMap({ URL(string: $0.audioURL) }) {
-      return .podcasts(url, podcastEpisode?.seconds)
-    } else if let youtubeID = youtubeVideo?.youtubeId {
-      return .youtube(youtubeID, podcastEpisode?.seconds)
+    if let podcastEpisode = self.podcastEpisode, let url = URL(string: podcastEpisode.audioURL) {
+      return .podcasts(url, podcastEpisode.seconds)
+    } else if let youtubeVideo = self.youtubeVideo {
+      return .youtube(youtubeVideo.youtubeId, youtubeVideo.seconds)
     } else {
       return try EntryCategory(type: category)
     }

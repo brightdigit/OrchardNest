@@ -60,7 +60,6 @@ struct RefreshJob: ScheduledJob, Job {
     }
     queryItems.append(URLQueryItem(name: "id", value: ids.joined(separator: "," )))
     components.queryItems = queryItems
-    debugPrint(components.url)
     return URI(
       scheme: components.scheme,
       host: components.host,
@@ -164,19 +163,6 @@ struct RefreshJob: ScheduledJob, Job {
         }
 
         return finalResults
-//      return organizedSites.map { orgSite in
-//        FeedChannel.parseSite(orgSite, using: context.application.client, on: context.eventLoop)
-//          .map { result in
-//            result.flatMap { FeedConfiguration.from(
-//              categorySlug: orgSite.categorySlug,
-//              languageCode: orgSite.languageCode,
-//              channel: $0,
-//              langMap: langMap,
-//              catMap: catMap
-//            )
-//            }
-//          }
-//      }.flatten(on: context.eventLoop)
       }
 
       let groupedResults = futureFeedResults.map { results -> ([FeedConfiguration], [FeedError]) in
@@ -288,13 +274,6 @@ struct RefreshJob: ScheduledJob, Job {
           .flatMapEach(on: database.eventLoop) { (config) -> EventLoopFuture<FeedItemEntry> in
             FeedItemEntry.from(upsertOn: database, from: config)
           }
-
-//        curl \
-//          '  'https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=Ks-_Mh1QhMc&access_token=XXX&fields=items%2Fid%2Citems%2FcontentDetails%2Fduration&key=[YOUR_API_KEY]' \
-      
-//          --header 'Authorization: Bearer [YOUR_ACCESS_TOKEN]' \
-//          --header 'Accept: application/json' \
-//          --compressed
         
         // save videos to entries
         

@@ -22,11 +22,11 @@ struct EntryCategoryCodable: Codable {
 }
 
 public enum EntryCategory: Codable {
-  public init(podcastEpisodeAtURL url: URL, withSeconds seconds: Int?) {
+  public init(podcastEpisodeAtURL url: URL, withSeconds seconds: Int) {
     self = .podcasts(url, seconds)
   }
 
-  public init(youtubeVideoWithID id: String, withSeconds seconds: Int?) {
+  public init(youtubeVideoWithID id: String, withSeconds seconds: Int) {
     self = .youtube(id, seconds)
   }
 
@@ -54,15 +54,15 @@ public enum EntryCategory: Codable {
     case .newsletters: self = .newsletters
     case .updates: self = .updates
     case .podcasts:
-      guard let url = codable.value.flatMap(URL.init(string:)) else {
+      guard let url = codable.value.flatMap(URL.init(string:)), let seconds = codable.seconds else {
         throw DecodingError.valueNotFound(URL.self, DecodingError.Context(codingPath: [], debugDescription: ""))
       }
-      self = .podcasts(url, codable.seconds)
+      self = .podcasts(url, seconds)
     case .youtube:
-      guard let id = codable.value else {
+      guard let id = codable.value, let seconds = codable.seconds else {
         throw DecodingError.valueNotFound(URL.self, DecodingError.Context(codingPath: [], debugDescription: ""))
       }
-      self = .youtube(id, codable.seconds)
+      self = .youtube(id, seconds)
     }
   }
 
@@ -76,9 +76,9 @@ public enum EntryCategory: Codable {
   case development
   case marketing
   case newsletters
-  case podcasts(URL, Int?)
+  case podcasts(URL, Int)
   case updates
-  case youtube(String, Int?)
+  case youtube(String, Int)
 
   public var type: EntryCategoryType {
     switch self {

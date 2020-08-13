@@ -5,6 +5,16 @@ import OrchardNestKit
 import Plot
 import Vapor
 
+extension Int {
+  func asString(style: DateComponentsFormatter.UnitsStyle) -> String {
+    let formatter = DateComponentsFormatter()
+    formatter.allowedUnits = [.hour, .minute, .second]
+    formatter.unitsStyle = style
+    
+    guard let formattedString = formatter.string(from: Double(self)) else { return "" }
+    return formattedString
+  }
+}
 struct InvalidDatabaseError: Error {}
 
 extension Node where Context == HTML.BodyContext {
@@ -200,6 +210,12 @@ extension Node where Context == HTML.ListContext {
           .class("publishedAt"),
           .text(formatter.string(from: item.publishedAt))
         ),
+        .unwrap(item.seconds) {
+          .div(
+            .class("length"),
+            .text($0.asString(style: .positional))
+          )
+        },
         .unwrap(item.youtubeID, {
           .div(
             .class("video-content"),
