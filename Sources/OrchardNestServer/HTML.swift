@@ -202,7 +202,7 @@ public extension Node where Context == HTML.ListContext {
         .unwrap(item.seconds) {
           .div(
             .class("length"),
-            .text($0.asString(style: .positional))
+            .text($0.positionalTime)
           )
         },
         .unwrap(item.youtubeID, {

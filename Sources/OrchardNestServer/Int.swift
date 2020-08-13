@@ -1,12 +1,11 @@
 import Foundation
 
 extension Int {
-  func asString(style: DateComponentsFormatter.UnitsStyle) -> String {
-    let formatter = DateComponentsFormatter()
-    formatter.allowedUnits = [.hour, .minute, .second]
-    formatter.unitsStyle = style
-
-    guard let formattedString = formatter.string(from: Double(self)) else { return "" }
-    return formattedString
+  var positionalTime : String {
+    let (hours, hoursMod) = self.quotientAndRemainder(dividingBy: 3600)
+    let (minutes, seconds) = hoursMod.quotientAndRemainder(dividingBy: 60)
+    return [hours,minutes,seconds].filter{ $0 > 0 }.map {
+      String(format: "%02i", $0)
+    }.joined(separator: ":")
   }
 }
