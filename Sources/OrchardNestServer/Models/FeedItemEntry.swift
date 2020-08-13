@@ -31,16 +31,16 @@ struct FeedItemEntry {
 
 extension FeedItemEntry {
   var podcastEpisode: PodcastEpisode? {
-    guard let id = entry.id, let audioURL = feedItem.audio else {
+    guard let id = entry.id, let audioURL = feedItem.audio, let duration = feedItem.duration else {
       return nil
     }
-    return PodcastEpisode(entryId: id, audioURL: audioURL.absoluteString, seconds: feedItem.duration.map(Int.init))
+    return PodcastEpisode(entryId: id, audioURL: audioURL.absoluteString, seconds: Int(duration.rounded()))
   }
 
-  var youtubeVideo: YoutubeVideo? {
-    guard let id = entry.id, let youtubeId = feedItem.ytId else {
-      return nil
-    }
-    return YoutubeVideo(entryId: id, youtubeId: youtubeId)
-  }
+//  var youtubeVideo: YoutubeVideo? {
+//    guard let id = entry.id, let youtubeId = feedItem.ytId else {
+//      return nil
+//    }
+//    return YoutubeVideo(entryId: id, youtubeId: youtubeId)
+//  }
 }

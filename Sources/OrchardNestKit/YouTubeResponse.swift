@@ -201,14 +201,14 @@ extension TimeInterval {
 //
 //let data = json.data(using: .utf8)!
 
-struct YouTubeItemContentDetails : Decodable {
-  let duration: TimeInterval
+public struct YouTubeItemContentDetails : Decodable {
+  public let duration: TimeInterval
   
   enum CodingKeys : String, CodingKey {
     case duration
   }
   
-  init(from decoder: Decoder) throws {
+  public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let durationString = try container.decode(String.self, forKey: .duration)
     self.duration = try TimeInterval(iso8601: durationString)
@@ -216,13 +216,13 @@ struct YouTubeItemContentDetails : Decodable {
   
 }
 
-struct YouTubeItem  : Decodable {
-  let contentDetails : YouTubeItemContentDetails
-  let id : String
+public struct YouTubeItem  : Decodable {
+  public let contentDetails : YouTubeItemContentDetails
+  public let id : String
 }
 
-struct YouTubeResponse  : Decodable {
-  let items : [YouTubeItem]
+public struct YouTubeResponse  : Decodable {
+  public let items : [YouTubeItem]
 }
 
 //let result = Result{try decoder.decode(YouTubeResponse.self, from: data)}

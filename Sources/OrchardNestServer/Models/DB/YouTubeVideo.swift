@@ -6,9 +6,10 @@ final class YoutubeVideo: Model {
 
   init() {}
 
-  init(entryId: UUID, youtubeId: String) {
+  init(entryId: UUID, youtubeId: String, seconds: Int) {
     id = entryId
     self.youtubeId = youtubeId
+    self.seconds = seconds
   }
 
   @ID(custom: "entry_id", generatedBy: .user)
@@ -17,8 +18,8 @@ final class YoutubeVideo: Model {
   @Field(key: "youtube_id")
   var youtubeId: String
 
-  @OptionalField(key: "seconds")
-  var seconds: Int?
+  @Field(key: "seconds")
+  var seconds: Int
 
   @Parent(key: "entry_id")
   var entry: Entry

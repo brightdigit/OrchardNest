@@ -3,6 +3,29 @@ import NIO
 import OrchardNestKit
 import Queues
 import Vapor
+extension Collection {
+    
+    func chunked(by distance: Int) -> [[Element]] {
+        var result: [[Element]] = []
+        var batch: [Element] = []
+        
+        for element in self {
+            batch.append(element)
+            
+            if batch.count == distance {
+                result.append(batch)
+                batch = []
+            }
+        }
+        
+        if !batch.isEmpty {
+            result.append(batch)
+        }
+        
+        return result
+    }
+    
+}
 
 struct ApplePodcastResult: Codable {
   let collectionId: Int
@@ -19,12 +42,34 @@ struct RefreshJob: ScheduledJob, Job {
       RefreshConfiguration()
     )
   }
+  
+  static let youtubeAPIKey = Environment.get("YOUTUBE_API_KEY")!
 
   static let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json")!
 
   static let basePodcastQueryURLComponents = URLComponents(string: """
   https://itunes.apple.com/search?media=podcast&attribute=titleTerm&limit=1&entity=podcast
   """)!
+  
+  static let youtubeQueryURLComponents = URLComponents(string: "https://www.googleapis.com/youtube/v3/videos?part=contentDetails&fields=items%2Fid%2Citems%2FcontentDetails%2Fduration&key=\(Self.youtubeAPIKey)")!
+  
+  static func queryURL(forYouTubeWithIds ids: [String]) -> URI {
+    var components = Self.youtubeQueryURLComponents
+    guard var queryItems = components.queryItems else {
+      preconditionFailure()
+    }
+    queryItems.append(URLQueryItem(name: "id", value: ids.joined(separator: "," )))
+    components.queryItems = queryItems
+    debugPrint(components.url)
+    return URI(
+      scheme: components.scheme,
+      host: components.host,
+      port: components.port,
+      path: components.path,
+      query: components.query,
+      fragment: components.fragment
+    )
+  }
 
   static func queryURL(forPodcastWithTitle title: String) -> URI {
     var components = Self.basePodcastQueryURLComponents
@@ -252,9 +297,30 @@ struct RefreshJob: ScheduledJob, Job {
 //          --compressed
         
         // save videos to entries
-        let futYTVideos = futureEntries.mapEachCompact { (entry) -> YoutubeVideo? in
-          entry.youtubeVideo
-        }.flatMapEach(on: database.eventLoop) { newVideo in
+        
+        let futYTVideos = futureEntries.flatMap { (entries) -> EventLoopFuture<[YoutubeVideo]> in
+          return entries.compactMap{ $0.feedItem.ytId }.chunked(by: 50).map(Self.queryURL(forYouTubeWithIds:)).map{client.get($0)}.flatten(on: client.eventLoop).flatMapEachThrowing { (response) in
+            try response.content.decode(YouTubeResponse.self).items.map{
+              (key: $0.id, value: $0.contentDetails.duration)
+            }
+          }.map { (arrays : [[(String, TimeInterval)]]) -> [(String, TimeInterval)] in
+            arrays.flatMap{ $0 }
+          }.map(Dictionary<String, TimeInterval>.init(uniqueKeysWithValues:)).map { (durations) in
+              entries.compactMap { (entry) -> YoutubeVideo? in
+                guard let id = entry.entry.id else {
+                  return nil
+                }
+                guard let youtubeId = entry.feedItem.ytId else {
+                  return nil
+                }
+                guard let duration = durations[youtubeId] else {
+                  return nil
+                }
+                return YoutubeVideo(entryId: id, youtubeId: youtubeId, seconds: Int(duration.rounded()))
+              }
+            }
+        }.recover{_ in [YoutubeVideo]()}
+        .flatMapEach(on: database.eventLoop) { newVideo in
           YoutubeVideo.upsert(newVideo, on: database)
         }
 
