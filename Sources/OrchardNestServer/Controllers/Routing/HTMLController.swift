@@ -3,6 +3,7 @@ import FluentSQL
 import Ink
 import OrchardNestKit
 import Plot
+import QueuesFluentDriver
 import Vapor
 
 extension Array where Element == [String] {
@@ -185,8 +186,12 @@ struct HTMLController {
   }
 
   func sitemap(req: Request) -> EventLoopFuture<SiteMap> {
-    req.application.routes.all.filter { route in
-      guard route.method != .GET else {
+    let last = (req.queue as? FluentQueue).map {
+      $0.list(state: .completed).map { $0.map { $0.queuedAt }.max() }
+    } ?? req.eventLoop.makeSucceededFuture(nil)
+    let urls = req.application.routes.all.filter { route in
+
+      guard route.method == .GET else {
         return false
       }
 
@@ -196,8 +201,14 @@ struct HTMLController {
         }
       }
 
+      if case let .constant(name) = route.path.last {
+        guard name != "sitemap.xml" else {
+          return false
+        }
+      }
+
       return true
-    }.flatMap { (route) -> [SiteMapItem] in
+    }.map { (route) -> EventLoopFuture<[URL]> in
       let baseURL = URL(string: "https://orchardnest.com")!
 
       let components: [SiteMapPathComponent] = route.path.compactMap { path in
@@ -214,20 +225,31 @@ struct HTMLController {
         }
       }
 
-      components.map { (component) -> EventLoopFuture<[String]> in
+      let urls = components.map { (component) -> EventLoopFuture<[String]> in
         switch component {
         case let .name(name):
           return req.eventLoop.makeSucceededFuture([name])
         case let .parameter(parameter):
-          return parameter.pathComponents(eventLoop: req.eventLoop)
+          return parameter.pathComponents(on: req.db, withViews: [String](self.views.keys), from: req.eventLoop)
         }
-      }.flatten(on: req.eventLoop).map { $0.crossReduce() }
+      }.flatten(on: req.eventLoop).map { $0.crossReduce().map { $0.joined(separator: "/") }.map(baseURL.appendingPathComponent(_:)) }
 
-      return [SiteMapItem]()
+      return urls
+    }.flatten(on: req.eventLoop)
+
+    return urls.map { $0.flatMap { $0 }}.and(last).map { (urls, last) -> SiteMap in
+      SiteMap(
+        .forEach(urls) { url in
+          .url(
+            .loc(url),
+            .changefreq(.hourly),
+            .unwrap(last) {
+              .lastmod($0)
+            }
+          )
+        }
+      )
     }
-
-    return req.eventLoop.makeSucceededFuture(SiteMap(
-    ))
   }
 }
 
@@ -243,8 +265,15 @@ enum MappableParameter: String {
 }
 
 extension MappableParameter {
-  func pathComponents(eventLoop: EventLoop) -> EventLoopFuture<[String]> {
-    eventLoop.makeSucceededFuture([String]())
+  func pathComponents(on database: Database, withViews views: [String], from eventLoop: EventLoop) -> EventLoopFuture<[String]> {
+    switch self {
+    case .channel:
+      return Channel.query(on: database).field(\.$id).all().map { $0.compactMap { $0.id?.base32Encoded.lowercased() } }
+    case .category:
+      return Category.query(on: database).field(\.$id).all().map { $0.compactMap { $0.id }}
+    case .page:
+      return eventLoop.makeSucceededFuture(views)
+    }
   }
 }
 
