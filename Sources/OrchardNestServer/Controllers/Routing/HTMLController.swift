@@ -6,24 +6,6 @@ import Plot
 import QueuesFluentDriver
 import Vapor
 
-extension Array where Element == [String] {
-  func crossReduce() -> [[String]] {
-    reduce([[String]]()) { (arrays, newPaths) -> [[String]] in
-      if arrays.count > 0 {
-        return arrays.flatMap { (array) -> [[String]] in
-          newPaths.map { (newPath) -> [String] in
-            var newArray = array
-            newArray.append(newPath)
-            return newArray
-          }
-        }
-      } else {
-        return newPaths.map { [$0] }
-      }
-    }
-  }
-}
-
 struct HTMLController {
   let views: [String: Markdown]
   static let dateFormatter: DateFormatter = {
@@ -252,32 +234,6 @@ struct HTMLController {
     }
   }
 }
-
-enum SiteMapPathComponent {
-  case parameter(MappableParameter)
-  case name(String)
-}
-
-enum MappableParameter: String {
-  case category
-  case channel
-  case page
-}
-
-extension MappableParameter {
-  func pathComponents(on database: Database, withViews views: [String], from eventLoop: EventLoop) -> EventLoopFuture<[String]> {
-    switch self {
-    case .channel:
-      return Channel.query(on: database).field(\.$id).all().map { $0.compactMap { $0.id?.base32Encoded.lowercased() } }
-    case .category:
-      return Category.query(on: database).field(\.$id).all().map { $0.compactMap { $0.id }}
-    case .page:
-      return eventLoop.makeSucceededFuture(views)
-    }
-  }
-}
-
-struct SiteMapItem {}
 
 extension HTMLController: RouteCollection {
   func boot(routes: RoutesBuilder) throws {
