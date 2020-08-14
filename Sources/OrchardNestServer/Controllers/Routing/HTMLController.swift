@@ -495,8 +495,64 @@ struct HTMLController {
   }
 
   func sitemap(req: Request) -> EventLoopFuture<SiteMap> {
-    return req.eventLoop.makeSucceededFuture(SiteMap())
+    
+    req.application.routes.all.filter { (route) in
+      guard route.method != .GET else {
+        return false
+      }
+
+      if case let .constant(name) = route.path.first {
+        guard name != "api" else {
+          return false
+        }
+      }
+
+      return true
+    }.flatMap { (route) -> [SiteMapItem] in
+      let baseURL = URL(string: "https://orchardnest.com")!
+
+      
+      let components : [SiteMapPathComponent] = route.path.compactMap { (path) in
+        switch path {
+
+        case .constant(let constant):
+          return .name(constant)
+        case .parameter(let parameter):
+          guard let mappable = MappableParameter(rawValue: parameter) else {
+            return nil
+          }
+          return .parameter(mappable)
+        default:
+          return nil
+        }
+      }
+      
+      
+      
+      return [SiteMapItem]()
+    }
+    
+    
+    
+    return req.eventLoop.makeSucceededFuture(SiteMap(
+      
+    ))
   }
+}
+
+enum SiteMapPathComponent {
+  case parameter(MappableParameter)
+  case name(String)
+}
+
+enum MappableParameter : String {
+  case category = "category"
+  case channel = "channel"
+  case page = "page"
+}
+
+struct SiteMapItem {
+  
 }
 
 extension HTMLController: RouteCollection {
