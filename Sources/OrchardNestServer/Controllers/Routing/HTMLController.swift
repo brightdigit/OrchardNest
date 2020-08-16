@@ -94,7 +94,7 @@ struct HTMLController {
           .section(
             .class("row"),
             .article(
-              .class("page column"),
+              .class("page column \(name)"),
               .raw(view.html)
             )
           )
