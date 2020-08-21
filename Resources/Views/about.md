@@ -15,7 +15,7 @@ If you have any other questions, check out our support and FAQ page for more det
 
 ## About Leo 
 
-![](https://via.placeholder.com/150)
+![](/images/leo.jpeg)
 
 Lorem markdownum femur verum spectas? Here are some things he's made you might be interested in:
 

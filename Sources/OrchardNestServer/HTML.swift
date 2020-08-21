@@ -196,6 +196,43 @@ public extension Node where Context == HTML.DocumentContext {
   }
 }
 
+public extension Node where Context == HTML.BodyContext {
+  static func year(fromDate date: Date = Date()) -> Self {
+    text(HTMLController.yearFormatter.string(from: date))
+  }
+}
+
+public extension Node where Context == HTML.BodyContext {
+  static func footer() -> Self {
+    return footer(
+      .class("container"),
+      .div(
+        .class("row"),
+        .span(
+          .class("column"),
+          .span(
+          .text("Site Designed and Maintained by "),
+              .a(
+                .target(.blank),
+                .href("https://twitter.com/leogdion"),
+                .text("Leo Dion. ")
+              )
+            ),
+          .span(
+            .a(
+              .target(.blank),
+              .href("https://brightdigit.com"),
+              .text("Bright Digit, LLC")
+            ),
+              .text(". Copyright ©"),
+              .year()
+            )
+        )
+      )
+    )
+  }
+}
+
 public extension Node where Context == HTML.ListContext {
   static func li(forEntryItem item: EntryItem, formatDateWith formatter: DateFormatter) -> Self {
     return
