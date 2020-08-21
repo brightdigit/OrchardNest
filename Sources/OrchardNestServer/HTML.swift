@@ -210,23 +210,24 @@ public extension Node where Context == HTML.BodyContext {
         .class("row"),
         .span(
           .class("column"),
+          .hr(),
           .span(
-          .text("Site Designed and Maintained by "),
-              .a(
-                .target(.blank),
-                .href("https://twitter.com/leogdion"),
-                .text("Leo Dion. ")
-              )
-            ),
+            .text("Site Designed and Maintained by "),
+            .a(
+              .target(.blank),
+              .href("https://twitter.com/leogdion"),
+              .text("Leo Dion. ")
+            )
+          ),
           .span(
             .a(
               .target(.blank),
               .href("https://brightdigit.com"),
               .text("Bright Digit, LLC")
             ),
-              .text(". Copyright ©"),
-              .year()
-            )
+            .text(". Copyright ©"),
+            .year()
+          )
         )
       )
     )

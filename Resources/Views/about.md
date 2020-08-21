@@ -5,44 +5,28 @@ description: About Orchardnest
 
 # OrchardNest
 
-OrchardNest is a site built by Leo Dion and dedicated to the Swift and Apple Developer community by providing a source for news, tutorials, podcasts, YouTube videos, and other updates.
+**OrchardNest is a site built by Leo Dion and dedicated to the Swift and Apple Developer community by providing a source for news, tutorials, podcasts, YouTube videos, and other updates.**
 
-Based on the wonderful [iOS Dev Directory by Dave Verwer](https://iosdevdirectory.com), this aggreates, filters, curates the variety of RSS feeds availables from [developers](/development), [designers](/design), [podcasters](/podcasts), [youtubers](/youtube) and [newsletters](/newsletters). 
+**Based on the wonderful [iOS Dev Directory by Dave Verwer](https://iosdevdirectory.com)**, this aggreates, filters, curates the variety of RSS feeds availables from [developers](/development), [designers](/design), [podcasters](/podcasts), [youtubers](/youtube) and [newsletters](/newsletters). 
 
-If I am missing a site I highly recommend checking out Dave's [guidence on how to add a site](https://iosdevdirectory.com/contributing/). My hope is that this site continues to grow and be more focus on helping developers stay informed about the Apple ecosystem and Swift.
+If I am missing a site I highly recommend checking out Dave's [guidence on how to add a site](https://iosdevdirectory.com/contributing/). My hope is that this site continues to grow and helps developers stay informed about the Apple ecosystem and Swift.
 
-If you have any other questions, check out our support and FAQ page for more details.
+If you have any other questions, check out our [support and FAQ page](/support) for more details.
 
-## About Leo 
+## <i class="el el-smiley"></i> About Leo 
 
 ![](/images/leo.jpeg)
 
-Lorem markdownum femur verum spectas? Here are some things he's made you might be interested in:
+**Hi! My name is Leo Dion.** I have been doing software development for over 20 years. I have focused on Apple platforms and Swift for at least 10 years. I love developing in Swift and [I run my own company, BrightDigit](https://brightdigit.com) doing freelance Swift development and consulting. I build apps for the iPhone and iPad but also I love the Mac and Apple Watch as well. Recently I have enjoyed building
+server-side solutions like this in Swift with Vapor.
 
-1. Parsque Ixione et requiris auras nec recentes
-2. Medio pulsarunt pater
-3. Minus licet atque
-4. Dentes modo sanguineam refert Panaque Aeneaden hosti
-5. Tu creatus datis
+Besides [my company](https://brightdigit.com), I run [a podcast, EmpowerApps.Show](https://empowerapps.show), a [development blog at learningswift.brightdigit.com](https://learningswift.brightdigit.com) and speak at conferences frequently about life, career, dev work and of course ... Swift.
 
-Cauda [amorem](http://www.remisit-et.io/et.html) Charaxi poposcerat expalluit
-comitata validos, cum latrator Circaea urbe. Iaculi quereris coniunx volucris
-gratia: in praemia sol: tamen ducem vestigia Helicona rursusque. Iacuit
-taciturna coniecit ille, nullaque dives, densis, et est ingeniis! Lacus te
-Aganippe, est nullum iaculum patietur exire; iusta excessisse inplet. Coeunt
-ferre, spem desunt; nec matrem [in antiqua](http://ab.io/) freti; illa quale
-facto.
-
-> Rara excute tauros, adferre idem ille pariter certe quantumque varias. Lateque
-> dumque contemptaque manus fundere [laeta quam
-> Latiis](http://iacuit.com/longus.aspx) Tyros undas Vesta interceperit.
-
-Pretiumque currus: apta pavet quae in forma Somni vultum liquidum vires matrem
-saecula. [Et](http://locumque.com/via) deerit meruit.
+**Please reach out to [me](http://twitter.com/leogdion) if you have any questions.**
 
 ---
 
-## Technical Details
+## <i class="el el-wrench"></i> Technical Details
 
 For those interested in the technical details:
 

@@ -8,13 +8,13 @@ import Vapor
 
 struct HTMLController {
   let views: [String: Markdown]
-  
-  static let yearFormatter : DateFormatter = {
+
+  static let yearFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy"
     return formatter
   }()
-  
+
   static let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.timeStyle = .short
