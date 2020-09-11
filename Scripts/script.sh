@@ -14,8 +14,8 @@ fi
 ARCH=${TRAVIS_CPU_ARCH:-amd64}
 [[ $TRAVIS_CPU_ARCH = "arm64" ]] && ARCH_PREFIX="aarch64" || ARCH_PREFIX="x86_64"
   
-swift build
-swift test  --enable-code-coverage --enable-test-discovery
+travis_wait swift build
+travis_wait swift test  --enable-code-coverage --enable-test-discovery
 
 if [[ $TRAVIS_OS_NAME = 'osx' ]]; then
   xcrun llvm-cov export -format="lcov" .build/debug/${FRAMEWORK_NAME}PackageTests.xctest/Contents/MacOS/${FRAMEWORK_NAME}PackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
