@@ -25,4 +25,4 @@ env:
 before_install:
   - bash -e ./Scripts/before_install.sh
 script:
-  - bash -e ./Scripts/script.sh
+  - travis_wait bash -e ./Scripts/script.sh
