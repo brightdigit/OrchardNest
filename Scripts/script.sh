@@ -14,6 +14,7 @@ fi
 ARCH=${TRAVIS_CPU_ARCH:-amd64}
 [[ $TRAVIS_CPU_ARCH = "arm64" ]] && ARCH_PREFIX="aarch64" || ARCH_PREFIX="x86_64"
   
+swift package resolve
 swift build
 swift test  --enable-code-coverage --enable-test-discovery
 
