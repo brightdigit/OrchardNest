@@ -26,9 +26,8 @@ let package = Package(
     .package(name: "QueuesFluentDriver", url: "https://github.com/m-barthelemy/vapor-queues-fluent-driver.git", from: "0.3.8"),
     .package(name: "Plot", url: "https://github.com/johnsundell/plot.git", from: "0.8.0"),
     .package(url: "https://github.com/JohnSundell/Ink.git", from: "0.1.0"),
-    // dev
-    .package(url: "https://github.com/shibapm/Komondor", from: "1.0.5"),
-    .package(url: "https://github.com/eneko/SourceDocs", from: "1.2.1")
+    .package(url: "https://github.com/shibapm/Komondor", from: "1.0.5"), // dev
+    .package(url: "https://github.com/eneko/SourceDocs", from: "1.2.1") // dev
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -66,7 +65,7 @@ let package = Package(
         "swift test --enable-code-coverage --enable-test-discovery --generate-linuxmain",
         "swift run swiftformat .",
         "swift run swiftlint autocorrect",
-        "swift run sourcedocs generate --spm-module OrchardNestKit -c -r",
+        "swift run sourcedocs generate build -cra",
         // "swift run swiftpmls mine",
         "git add .",
         "swift run swiftformat --lint .",
