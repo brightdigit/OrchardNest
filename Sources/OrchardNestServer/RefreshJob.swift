@@ -43,6 +43,43 @@ struct RefreshScheduledJob: ScheduledJob {
 }
 
 struct RefreshJob: Job {
+ 
+  typealias Payload = RefreshConfiguration
+
+  func error(_ context: QueueContext, _ error: Error, _: RefreshConfiguration) -> EventLoopFuture<Void> {
+    context.logger.report(error: error)
+    return context.eventLoop.future()
+  }
+  
+
+  
+  func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
+    let database = context.application.db
+    let client = context.application.client
+
+    let decoder = JSONDecoder()
+
+    let process = RefreshProcess()
+    
+    return process.begin(using: RefreshParameters(logger: context.logger, database: context.application.db, client: context.application.client), on: context.eventLoop)
+  }
+}
+
+class RefreshParameters {
+  internal init(logger: Logger, database: Database, client: Client, decoder: JSONDecoder = JSONDecoder()) {
+    self.logger = logger
+    self.database = database
+    self.client = client
+    self.decoder = decoder
+  }
+  
+  let logger : Logger
+  let database : Database
+  let client : Client
+  let decoder : JSONDecoder
+}
+
+struct RefreshProcess {
   static let youtubeAPIKey = Environment.get("YOUTUBE_API_KEY")!
 
   static let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json")!
@@ -89,13 +126,6 @@ struct RefreshJob: Job {
     )
   }
 
-  typealias Payload = RefreshConfiguration
-
-  func error(_ context: QueueContext, _ error: Error, _: RefreshConfiguration) -> EventLoopFuture<Void> {
-    context.logger.report(error: error)
-    return context.eventLoop.future()
-  }
-  
   struct FeedResultResponse {
     internal init(maps: ([Language], [Category]), organizedSites: [OrganizedSite]) {
       self.languages = maps.0
@@ -107,7 +137,7 @@ struct RefreshJob: Job {
     let categories : [Category]
     let organizedSites : [OrganizedSite]
   }
-
+  
   func download (basedOn response: FeedResultResponse, using client: Client, on eventLoop: EventLoop, with logger: Logger) -> EventLoopFuture<[FeedResult]> {
     //let futureFeedResults: EventLoopFuture<[FeedResult]>
     let langMap = Language.dictionary(from: response.languages)
@@ -149,43 +179,39 @@ struct RefreshJob: Job {
       return finalResults
     
   }
+  
   // swiftlint:disable:next function_body_length
-  func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
-    let database = context.application.db
-    let client = context.application.client
-
-    let decoder = JSONDecoder()
-
-    context.logger.info("downloading blog list...")
-
-    let blogsDownload = context.application.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> [LanguageContent] in
-      try response.content.decode([LanguageContent].self, using: decoder)
+  func begin(using parameters: RefreshParameters, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    parameters.logger.info("downloading blog list...")
+    
+    let blogsDownload = parameters.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> [LanguageContent] in
+      try response.content.decode([LanguageContent].self, using: parameters.decoder)
     }.map(SiteCatalogMap.init)
-
-    let ignoringFeedURLs = ChannelStatus.query(on: database)
+    
+    let ignoringFeedURLs = ChannelStatus.query(on: parameters.database)
       .filter(\.$status == ChannelStatusType.ignore)
       .field(\.$id)
       .all()
       .map { $0.compactMap { $0.id.flatMap(URL.init(string:)) }}
-
+    
     return blogsDownload.and(ignoringFeedURLs).flatMap { siteCatalogMap, ignoringFeedURLs -> EventLoopFuture<Void> in
       let languages = siteCatalogMap.languages
       let categories = siteCatalogMap.categories
       let organizedSites = siteCatalogMap.organizedSites.filter {
         !ignoringFeedURLs.contains($0.site.feed_url)
       }
-
-      let channelCleanup = Channel.query(on: database).filter(\.$feedUrl ~~ ignoringFeedURLs.map { $0.absoluteString }).delete()
-
-      let futureLanguages = languages.map { Language.from($0, on: database) }.flatten(on: database.eventLoop)
-      let futureCategories = categories.map { Category.from($0.key, on: database) }.flatten(on: database.eventLoop)
-
-
+      
+      let channelCleanup = Channel.query(on: parameters.database).filter(\.$feedUrl ~~ ignoringFeedURLs.map { $0.absoluteString }).delete()
+      
+      let futureLanguages = languages.map { Language.from($0, on: parameters.database) }.flatten(on: eventLoop)
+      let futureCategories = categories.map { Category.from($0.key, on: parameters.database) }.flatten(on: eventLoop)
+      
+      
       // need map to lang, cats
-
+      
       let feedResultResponse = futureLanguages.and(futureCategories).and(value: organizedSites).map(FeedResultResponse.init)
       let futureFeedResults = feedResultResponse.flatMap{
-        self.download(basedOn: $0, using: client, on: context.eventLoop, with: context.logger)
+        self.download(basedOn: $0, using: parameters.client, on: eventLoop, with: parameters.logger)
       }
       let groupedResults = futureFeedResults.map { results -> ([FeedConfiguration], [FeedError]) in
         var errors = [FeedError]()
@@ -198,15 +224,15 @@ struct RefreshJob: Job {
         }
         return (configurations, errors)
       }
-
+      
       groupedResults.whenSuccess { groupedResults in
         let errors = groupedResults.1
         for error in errors {
-          context.logger.info("\(error.localizedDescription)")
+          parameters.logger.info("\(error.localizedDescription)")
         }
       }
-
-      return database.transaction { database in
+      
+      return parameters.database.transaction { database in
         let futureFeeds = groupedResults.map { $0.0 }.map { configs -> [FeedConfiguration] in
           let feeds = Dictionary(grouping: configs) { $0.channel.feedUrl }
           return feeds.compactMap { $0.value.first }
@@ -220,11 +246,11 @@ struct RefreshJob: Job {
             ($0.feedUrl, $0)
           }))
         }
-
+        
         let futureChannels = futureFeeds.and(currentChannels).flatMap { args -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-          context.logger.info("beginning upserting channels...")
+          parameters.logger.info("beginning upserting channels...")
           let (feeds, currentChannels) = args
-
+          
           ///
           ///     let first = numbers[..<p]
           ///     // first == [30, 10, 20, 30, 30]
@@ -239,11 +265,11 @@ struct RefreshJob: Job {
           let updatingChannels = allChanels[..<index].filter{$0.hasChanges}
           
           let updatingFutures = updatingChannels.map{
-              $0.channel.update(on: database)
-            }.flatten(on: context.eventLoop).transform(to: updatingChannels)
+            $0.channel.update(on: database)
+          }.flatten(on: eventLoop).transform(to: updatingChannels)
           
           let creatingChannels = allChanels[index...]
-            
+          
           let creatingFutures = creatingChannels.map{
             $0.channel
           }.create(on: database).transform(to: creatingChannels)
@@ -253,51 +279,51 @@ struct RefreshJob: Job {
             return $0.1 + $0.0
           }
         }
-//        }.flatMap { configurations -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-//
-//          return configurations.map{
-//            $0.channel
-//          }.create(on: database).flatMapAlways{_ -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-//            return context.eventLoop.future(configurations)
-//          }
+        //        }.flatMap { configurations -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+        //
+        //          return configurations.map{
+        //            $0.channel
+        //          }.create(on: database).flatMapAlways{_ -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+        //            return context.eventLoop.future(configurations)
+        //          }
         
         
-          
-//          database.withConnection { database -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-//
-//            var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
-//            let promise = context.eventLoop.makePromise(of: Void.self)
-//
-//            _ = context.eventLoop.scheduleRepeatedAsyncTask(
-//              initialDelay: .seconds(1),
-//              delay: .nanoseconds(20_000_000)
-//            ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
-//              guard results.count < configurations.count else {
-//                task.cancel(promise: promise)
-//
-//                context.logger.info("finished upserting channels...")
-//                return context.eventLoop.makeSucceededFuture(())
-//              }
-//              let args = configurations[results.count]
-//
-//              context.logger.info("saving \"\(args.channel.title)\"")
-//              let result = args.channel.save(on: database).transform(to: args).flatMapError { _ -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
-//                database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
-//              }
-//              results.append(result)
-//              return result.transform(to: ())
-//            }
-//            let finalResults = promise.futureResult.flatMap {
-//              results.flatten(on: context.eventLoop).mapEachCompact { $0 }
-//            }
-//
-//            return finalResults
-//          }
-       // }
-
+        
+        //          database.withConnection { database -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+        //
+        //            var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
+        //            let promise = context.eventLoop.makePromise(of: Void.self)
+        //
+        //            _ = context.eventLoop.scheduleRepeatedAsyncTask(
+        //              initialDelay: .seconds(1),
+        //              delay: .nanoseconds(20_000_000)
+        //            ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
+        //              guard results.count < configurations.count else {
+        //                task.cancel(promise: promise)
+        //
+        //                context.logger.info("finished upserting channels...")
+        //                return context.eventLoop.makeSucceededFuture(())
+        //              }
+        //              let args = configurations[results.count]
+        //
+        //              context.logger.info("saving \"\(args.channel.title)\"")
+        //              let result = args.channel.save(on: database).transform(to: args).flatMapError { _ -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
+        //                database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
+        //              }
+        //              results.append(result)
+        //              return result.transform(to: ())
+        //            }
+        //            let finalResults = promise.futureResult.flatMap {
+        //              results.flatten(on: context.eventLoop).mapEachCompact { $0 }
+        //            }
+        //
+        //            return finalResults
+        //          }
+        // }
+        
         let podcastChannels = futureChannels.mapEachCompact { configuration -> Channel? in
           let hasPodcastEpisode = (configuration.items.first { $0.audio != nil }) != nil
-
+          
           guard hasPodcastEpisode || configuration.channel.$category.id == "podcasts" else {
             return nil
           }
@@ -307,23 +333,23 @@ struct RefreshJob: Job {
             }
           }
           return configuration.channel
-        }.flatMapEachCompact(on: context.eventLoop) { channel -> EventLoopFuture<PodcastChannel?> in
-          client.get(Self.queryURL(forPodcastWithTitle: channel.title)).flatMapThrowing {
-            try $0.content.decode(ApplePodcastResponse.self, using: decoder)
+        }.flatMapEachCompact(on: eventLoop) { channel -> EventLoopFuture<PodcastChannel?> in
+          parameters.client.get(Self.queryURL(forPodcastWithTitle: channel.title)).flatMapThrowing {
+            try $0.content.decode(ApplePodcastResponse.self, using: parameters.decoder)
           }.map { response -> (PodcastChannel?) in
             response.results.first.flatMap { result in
               channel.id.map { ($0, result.collectionId) }
             }.map(PodcastChannel.init)
           }.recover { _ in nil }
-        }.flatMapEach(on: context.eventLoop) { $0.create(on: database) }
-
+        }.flatMapEach(on: eventLoop) { $0.create(on: database) }
+        
         // save youtube channels to channels
         let futYTChannels = futureChannels.mapEachCompact { channel -> YouTubeChannel? in
           channel.youtubeChannel
         }.flatMapEach(on: database.eventLoop) { newChannel in
           YouTubeChannel.upsert(newChannel, on: database)
         }
-
+        
         // save entries to channels
         let futureEntries = futureChannels
           .flatMapEachThrowing { try $0.feedItems() }
@@ -331,19 +357,19 @@ struct RefreshJob: Job {
           .flatMapEach(on: database.eventLoop) { config -> EventLoopFuture<FeedItemEntry> in
             FeedItemEntry.from(upsertOn: database, from: config)
           }
-
+        
         // save videos to entries
-
+        
         let futYTVideos = futureEntries.flatMap { entries -> EventLoopFuture<[YoutubeVideo]> in
           let possibleVideos = entries
             .compactMap { $0.feedItem.ytId }
-
-          context.logger.info("parsing \(possibleVideos.count) videos")
-
+          
+          parameters.logger.info("parsing \(possibleVideos.count) videos")
+          
           return possibleVideos.chunked(by: 50)
             .map(Self.queryURL(forYouTubeWithIds:))
-            .map { client.get($0) }
-            .flatten(on: client.eventLoop)
+            .map { parameters.client.get($0) }
+            .flatten(on: parameters.client.eventLoop)
             .flatMapEachThrowing { response in
               try response.content.decode(YouTubeResponse.self).items.map {
                 (key: $0.id, value: $0.contentDetails.duration)
@@ -351,7 +377,7 @@ struct RefreshJob: Job {
             }.map { (arrays: [[(String, TimeInterval)]]) -> [(String, TimeInterval)] in
               arrays.flatMap { $0 }
             }.map([String: TimeInterval].init(uniqueKeysWithValues:)).map { durations in
-
+              
               let youtubeVideos = entries.compactMap { entry -> YoutubeVideo? in
                 guard let id = entry.entry.id else {
                   return nil
@@ -364,24 +390,24 @@ struct RefreshJob: Job {
                 }
                 return YoutubeVideo(entryId: id, youtubeId: youtubeId, seconds: Int(duration.rounded()))
               }
-              context.logger.info("upserting \(youtubeVideos.count) videos")
+              parameters.logger.info("upserting \(youtubeVideos.count) videos")
               return youtubeVideos
             }
-
+          
         }.recover { _ in [YoutubeVideo]() }
-          .flatMapEach(on: database.eventLoop) { newVideo in
-            YoutubeVideo.upsert(newVideo, on: database)
-          }
-
+        .flatMapEach(on: database.eventLoop) { newVideo in
+          YoutubeVideo.upsert(newVideo, on: database)
+        }
+        
         // save podcastepisodes to entries
-
+        
         let futPodEpisodes = futureEntries.mapEachCompact { entry -> PodcastEpisode? in
-
+          
           entry.podcastEpisode
         }.flatMapEach(on: database.eventLoop) { newEpisode in
           PodcastEpisode.upsert(newEpisode, on: database)
         }
-
+        
         return futYTVideos.and(futYTChannels).and(futPodEpisodes).and(podcastChannels).and(channelCleanup).transform(to: ())
       }
     }
