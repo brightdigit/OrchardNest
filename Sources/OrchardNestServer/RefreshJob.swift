@@ -95,7 +95,60 @@ struct RefreshJob: Job {
     context.logger.report(error: error)
     return context.eventLoop.future()
   }
+  
+  struct FeedResultResponse {
+    internal init(maps: ([Language], [Category]), organizedSites: [OrganizedSite]) {
+      self.languages = maps.0
+      self.categories = maps.1
+      self.organizedSites = organizedSites
+    }
+    
+    let languages : [Language]
+    let categories : [Category]
+    let organizedSites : [OrganizedSite]
+  }
 
+  func download (basedOn response: FeedResultResponse, using client: Client, on eventLoop: EventLoop, with logger: Logger) -> EventLoopFuture<[FeedResult]> {
+    //let futureFeedResults: EventLoopFuture<[FeedResult]>
+    let langMap = Language.dictionary(from: response.languages)
+    let catMap = Category.dictionary(from: response.categories)
+//    futureFeedResults = langMap.and(catMap).flatMap { maps -> EventLoopFuture<[FeedResult]> in
+     logger.info("downloading feeds...")
+
+      var results = [EventLoopFuture<FeedResult>]()
+      let promise = eventLoop.makePromise(of: Void.self)
+      _ = eventLoop.scheduleRepeatedAsyncTask(
+        initialDelay: .seconds(1),
+        delay: .nanoseconds(20_000_000)
+      ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
+        guard results.count < response.organizedSites.count else {
+          task.cancel(promise: promise)
+
+          logger.info("finished downloading feeds...")
+          return eventLoop.makeSucceededFuture(())
+        }
+        let args = response.organizedSites[results.count]
+        logger.info("downloading \"\(args.site.feed_url)\"")
+        let result = FeedChannel.parseSite(args, using: client, on: eventLoop).map { result in
+          result.flatMap { FeedConfiguration.from(
+            categorySlug: args.categorySlug,
+            languageCode: args.languageCode,
+            channel: $0,
+            langMap: langMap,
+            catMap: catMap
+          )
+          }
+        }
+        results.append(result)
+        return result.transform(to: ())
+      }
+      let finalResults = promise.futureResult.flatMap {
+        results.flatten(on: eventLoop)
+      }
+
+      return finalResults
+    
+  }
   // swiftlint:disable:next function_body_length
   func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
     let database = context.application.db
@@ -127,50 +180,13 @@ struct RefreshJob: Job {
       let futureLanguages = languages.map { Language.from($0, on: database) }.flatten(on: database.eventLoop)
       let futureCategories = categories.map { Category.from($0.key, on: database) }.flatten(on: database.eventLoop)
 
-      let langMap = futureLanguages.map(Language.dictionary(from:))
-      let catMap = futureCategories.map(Category.dictionary(from:))
 
       // need map to lang, cats
 
-      let futureFeedResults: EventLoopFuture<[FeedResult]>
-      futureFeedResults = langMap.and(catMap).flatMap { maps -> EventLoopFuture<[FeedResult]> in
-        context.logger.info("downloading feeds...")
-
-        let (langMap, catMap) = maps
-        var results = [EventLoopFuture<FeedResult>]()
-        let promise = context.eventLoop.makePromise(of: Void.self)
-        _ = context.eventLoop.scheduleRepeatedAsyncTask(
-          initialDelay: .seconds(1),
-          delay: .nanoseconds(20_000_000)
-        ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
-          guard results.count < organizedSites.count else {
-            task.cancel(promise: promise)
-
-            context.logger.info("finished downloading feeds...")
-            return context.eventLoop.makeSucceededFuture(())
-          }
-          let args = organizedSites[results.count]
-          context.logger.info("downloading \"\(args.site.feed_url)\"")
-          let result = FeedChannel.parseSite(args, using: client, on: context.eventLoop).map { result in
-            result.flatMap { FeedConfiguration.from(
-              categorySlug: args.categorySlug,
-              languageCode: args.languageCode,
-              channel: $0,
-              langMap: langMap,
-              catMap: catMap
-            )
-            }
-          }
-          results.append(result)
-          return result.transform(to: ())
-        }
-        let finalResults = promise.futureResult.flatMap {
-          results.flatten(on: context.eventLoop)
-        }
-
-        return finalResults
+      let feedResultResponse = futureLanguages.and(futureCategories).and(value: organizedSites).map(FeedResultResponse.init)
+      let futureFeedResults = feedResultResponse.flatMap{
+        self.download(basedOn: $0, using: client, on: context.eventLoop, with: context.logger)
       }
-
       let groupedResults = futureFeedResults.map { results -> ([FeedConfiguration], [FeedError]) in
         var errors = [FeedError]()
         var configurations = [FeedConfiguration]()
@@ -213,35 +229,43 @@ struct RefreshJob: Job {
             ChannelFeedItemsConfiguration(channels: currentChannels, feedArgs: feedArgs)
           }
         }.flatMap { configurations -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-
-          database.withConnection { database -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-
-            var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
-            let promise = context.eventLoop.makePromise(of: Void.self)
-            _ = context.eventLoop.scheduleRepeatedAsyncTask(
-              initialDelay: .seconds(1),
-              delay: .nanoseconds(20_000_000)
-            ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
-              guard results.count < configurations.count else {
-                task.cancel(promise: promise)
-
-                context.logger.info("finished upserting channels...")
-                return context.eventLoop.makeSucceededFuture(())
-              }
-              let args = configurations[results.count]
-              context.logger.info("saving \"\(args.channel.title)\"")
-              let result = args.channel.save(on: database).transform(to: args).flatMapError { _ -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
-                database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
-              }
-              results.append(result)
-              return result.transform(to: ())
-            }
-            let finalResults = promise.futureResult.flatMap {
-              results.flatten(on: context.eventLoop).mapEachCompact { $0 }
-            }
-
-            return finalResults
+        
+          return configurations.map{
+            $0.channel
+          }.create(on: database).flatMapAlways{_ -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+            return context.eventLoop.future(configurations)
           }
+          
+//          database.withConnection { database -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+//
+//            var results = [EventLoopFuture<ChannelFeedItemsConfiguration?>]()
+//            let promise = context.eventLoop.makePromise(of: Void.self)
+//
+//            _ = context.eventLoop.scheduleRepeatedAsyncTask(
+//              initialDelay: .seconds(1),
+//              delay: .nanoseconds(20_000_000)
+//            ) { (task: RepeatedTask) -> EventLoopFuture<Void> in
+//              guard results.count < configurations.count else {
+//                task.cancel(promise: promise)
+//
+//                context.logger.info("finished upserting channels...")
+//                return context.eventLoop.makeSucceededFuture(())
+//              }
+//              let args = configurations[results.count]
+//
+//              context.logger.info("saving \"\(args.channel.title)\"")
+//              let result = args.channel.save(on: database).transform(to: args).flatMapError { _ -> EventLoopFuture<ChannelFeedItemsConfiguration?> in
+//                database.eventLoop.future(ChannelFeedItemsConfiguration?.none)
+//              }
+//              results.append(result)
+//              return result.transform(to: ())
+//            }
+//            let finalResults = promise.futureResult.flatMap {
+//              results.flatten(on: context.eventLoop).mapEachCompact { $0 }
+//            }
+//
+//            return finalResults
+//          }
         }
 
         let podcastChannels = futureChannels.mapEachCompact { configuration -> Channel? in
