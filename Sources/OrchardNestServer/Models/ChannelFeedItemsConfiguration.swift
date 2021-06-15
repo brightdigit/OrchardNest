@@ -42,4 +42,12 @@ extension ChannelFeedItemsConfiguration {
     }
     return YouTubeChannel(channelId: id, youtubeId: youtubeId)
   }
+  
+  var isNew : Bool {
+    self.channel.createdAt == nil
+  }
+  
+  var hasChanges : Bool {
+    self.channel.hasChanges
+  }
 }

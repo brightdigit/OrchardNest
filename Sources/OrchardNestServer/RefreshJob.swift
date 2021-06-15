@@ -221,20 +221,47 @@ struct RefreshJob: Job {
           }))
         }
 
-        let futureChannels = futureFeeds.and(currentChannels).map { args -> [ChannelFeedItemsConfiguration] in
+        let futureChannels = futureFeeds.and(currentChannels).flatMap { args -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
           context.logger.info("beginning upserting channels...")
           let (feeds, currentChannels) = args
 
-          return feeds.map { feedArgs in
+          ///
+          ///     let first = numbers[..<p]
+          ///     // first == [30, 10, 20, 30, 30]
+          ///     let second = numbers[p...]
+          ///     // second == [60, 40]
+          ///
+          var allChanels = feeds.map { feedArgs in
             ChannelFeedItemsConfiguration(channels: currentChannels, feedArgs: feedArgs)
           }
-        }.flatMap { configurations -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-        
-          return configurations.map{
+          let index = allChanels.partition { $0.isNew  }
+          
+          let updatingChannels = allChanels[..<index].filter{$0.hasChanges}
+          
+          let updatingFutures = updatingChannels.map{
+              $0.channel.update(on: database)
+            }.flatten(on: context.eventLoop).transform(to: updatingChannels)
+          
+          let creatingChannels = allChanels[index...]
+            
+          let creatingFutures = creatingChannels.map{
             $0.channel
-          }.create(on: database).flatMapAlways{_ -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
-            return context.eventLoop.future(configurations)
+          }.create(on: database).transform(to: creatingChannels)
+          
+          
+          return creatingFutures.and(updatingFutures).map{
+            return $0.1 + $0.0
           }
+        }
+//        }.flatMap { configurations -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+//
+//          return configurations.map{
+//            $0.channel
+//          }.create(on: database).flatMapAlways{_ -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
+//            return context.eventLoop.future(configurations)
+//          }
+        
+        
           
 //          database.withConnection { database -> EventLoopFuture<[ChannelFeedItemsConfiguration]> in
 //
@@ -266,7 +293,7 @@ struct RefreshJob: Job {
 //
 //            return finalResults
 //          }
-        }
+       // }
 
         let podcastChannels = futureChannels.mapEachCompact { configuration -> Channel? in
           let hasPodcastEpisode = (configuration.items.first { $0.audio != nil }) != nil
