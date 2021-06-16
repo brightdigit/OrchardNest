@@ -1,6 +1,6 @@
 import OrchardNestKit
 
-struct FeedConfiguration {
+struct FeedConfiguration : Codable {
   let categorySlug: String
   let languageCode: String
   let channel: FeedChannel
@@ -13,7 +13,7 @@ extension FeedConfiguration {
     channel: FeedChannel,
     langMap: [String: Language],
     catMap: [String: Category]
-  ) -> FeedResult {
+  ) -> Result<FeedConfiguration, FeedError> {
     guard let newLangId = langMap[languageCode]?.id else {
       return .failure(.invalidParent(channel.feedUrl, languageCode))
     }

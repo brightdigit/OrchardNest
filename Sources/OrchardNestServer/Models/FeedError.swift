@@ -6,6 +6,7 @@ enum FeedError: Error {
   case parser(URL, Error)
   case items(URL)
   case invalidParent(URL, String)
+  case internalError(Error)
 
   var localizedDescription: String {
     switch self {
@@ -19,6 +20,8 @@ enum FeedError: Error {
       return "\(url), items"
     case let .parser(url, error):
       return "\(url), parser, \"\(error)\""
+    case let .internalError(error):
+      return "internal, \"\(error)\""
     }
   }
 }

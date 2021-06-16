@@ -1,1 +1,2 @@
-typealias FeedResult = Result<FeedConfiguration, FeedError>
+import Foundation
+typealias FeedResult = Result<URL, FeedError>

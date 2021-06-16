@@ -159,7 +159,7 @@ struct RefreshProcess {
         }
         let args = response.organizedSites[results.count]
         logger.info("downloading \"\(args.site.feed_url)\"")
-        let result = FeedChannel.parseSite(args, using: client, on: eventLoop).map { result in
+        let result = FeedChannel.parseSite(args, using: client, on: eventLoop).map { result -> FeedResult in
           result.flatMap { FeedConfiguration.from(
             categorySlug: args.categorySlug,
             languageCode: args.languageCode,
@@ -167,6 +167,19 @@ struct RefreshProcess {
             langMap: langMap,
             catMap: catMap
           )
+          }.flatMap { configuration in
+            let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(),
+                                                isDirectory: true)
+            let id = UUID()
+            let fileURL = temporaryDirectoryURL.appendingPathComponent(id.uuidString)
+            let encoder = JSONEncoder()
+            do {
+              let data = try encoder.encode(configuration)
+              try data.write(to: fileURL, options: .atomic)
+            } catch {
+              return .failure(.internalError(error))
+            }
+            return .success( fileURL)
           }
         }
         results.append(result)
@@ -213,9 +226,9 @@ struct RefreshProcess {
       let futureFeedResults = feedResultResponse.flatMap{
         self.download(basedOn: $0, using: parameters.client, on: eventLoop, with: parameters.logger)
       }
-      let groupedResults = futureFeedResults.map { results -> ([FeedConfiguration], [FeedError]) in
+      let groupedResults = futureFeedResults.map { results -> ([URL], [FeedError]) in
         var errors = [FeedError]()
-        var configurations = [FeedConfiguration]()
+        var configurations = [URL]()
         results.forEach {
           switch $0 {
           case let .success(config): configurations.append(config)
@@ -233,7 +246,12 @@ struct RefreshProcess {
       }
       
       return parameters.database.transaction { database in
-        let futureFeeds = groupedResults.map { $0.0 }.map { configs -> [FeedConfiguration] in
+        let futureFeeds = groupedResults.map { $0.0 }.flatMapThrowing { urls -> [FeedConfiguration] in
+          let decoder = JSONDecoder()
+          let configs : [FeedConfiguration] = try urls.map{
+            let data = try Data(contentsOf: $0)
+            return try decoder.decode(FeedConfiguration.self, from: data)
+          }
           let feeds = Dictionary(grouping: configs) { $0.channel.feedUrl }
           return feeds.compactMap { $0.value.first }
         }
