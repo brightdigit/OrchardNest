@@ -3,6 +3,7 @@ import NIO
 import OrchardNestKit
 import Queues
 import Vapor
+import SyndiKit
 extension Collection {
   func chunked(by distance: Int) -> [[Element]] {
     var result: [[Element]] = []
@@ -184,9 +185,9 @@ struct RefreshProcess {
   func begin(using parameters: RefreshParameters, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
     parameters.logger.info("downloading blog list...")
     
-    let blogsDownload = parameters.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> [LanguageContent] in
-      try response.content.decode([LanguageContent].self, using: parameters.decoder)
-    }.map(SiteCatalogMap.init)
+    let blogsDownload = parameters.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> BlogArray in
+      try response.content.decode(BlogArray.self, using: parameters.decoder)
+    }.map(BlogCollection.init)
     
     let ignoringFeedURLs = ChannelStatus.query(on: parameters.database)
       .filter(\.$status == ChannelStatusType.ignore)
@@ -195,10 +196,11 @@ struct RefreshProcess {
       .map { $0.compactMap { $0.id.flatMap(URL.init(string:)) }}
     
     return blogsDownload.and(ignoringFeedURLs).flatMap { siteCatalogMap, ignoringFeedURLs -> EventLoopFuture<Void> in
-      let languages = siteCatalogMap.languages
-      let categories = siteCatalogMap.categories
+      let languages = siteCatalogMap.languages()
+      let categories = siteCatalogMap.categories()
+      
       let organizedSites = siteCatalogMap.organizedSites.filter {
-        !ignoringFeedURLs.contains($0.site.feed_url)
+        !ignoringFeedURLs.contains($0.site.feedURL)
       }
       
       let channelCleanup = Channel.query(on: parameters.database).filter(\.$feedUrl ~~ ignoringFeedURLs.map { $0.absoluteString }).delete()

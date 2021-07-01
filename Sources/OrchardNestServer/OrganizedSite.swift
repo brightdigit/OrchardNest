@@ -1,4 +1,5 @@
 import OrchardNestKit
+import SyndiKit
 
 struct OrganizedSite {
   let languageCode: String
