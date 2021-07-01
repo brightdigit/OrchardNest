@@ -19,13 +19,13 @@ let package = Package(
     .executable(name: "orchardnestd", targets: ["orchardnestd"])
   ],
   dependencies: [
-    .package(url: "https://github.com/brightdigit/FeedKit.git", .branch("master")),
     .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
     .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
     .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0"),
     .package(name: "QueuesFluentDriver", url: "https://github.com/m-barthelemy/vapor-queues-fluent-driver.git", from: "0.3.8"),
     .package(name: "Plot", url: "https://github.com/johnsundell/plot.git", from: "0.8.0"),
     .package(url: "https://github.com/JohnSundell/Ink.git", from: "0.1.0"),
+    .package(path: "Packages/SyndiKit"),
     .package(url: "https://github.com/shibapm/Komondor", from: "1.0.6"), // dev
     .package(url: "https://github.com/eneko/SourceDocs", from: "1.2.1"), // dev
     .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.47.0"), // dev
@@ -38,7 +38,7 @@ let package = Package(
     // Targets can depend on other targets in this package, and on products in packages this package depends on.
     .target(
       name: "OrchardNestKit",
-      dependencies: ["FeedKit"]
+      dependencies: [.product(name: "SyndiKit", package: "SyndiKit")]
     ),
     .target(
       name: "OrchardNestServer",
@@ -51,7 +51,7 @@ let package = Package(
                      .product(name: "Ink", package: "Ink")]
     ),
     .target(name: "orchardnestd",
-            dependencies: ["OrchardNestKit", "OrchardNestServer", "FeedKit"]),
+            dependencies: ["OrchardNestKit", "OrchardNestServer"]),
     .testTarget(
       name: "OrchardNestKitTests",
       dependencies: ["OrchardNestKit"]

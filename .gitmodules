@@ -1,0 +1,4 @@
+[submodule "Packages/SyndiKit"]
+	path = Packages/SyndiKit
+	url = git@github.com:brightdigit/SyndiKit.git
+	branch = feature/orchardnest
