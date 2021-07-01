@@ -1,1 +1,1 @@
-typealias FeedResult = Result<FeedConfiguration, FeedError>
+//typealias FeedResult = Result<FeedConfiguration, FeedError>

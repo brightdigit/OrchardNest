@@ -1,11 +1,12 @@
 import Fluent
 import Vapor
+import SyndiKit
 
 public final class Channel: Model {
   public static var schema = "channels"
 
-  public init() {}
-
+  public init() {
+  }
   @ID()
   public var id: UUID?
 
@@ -36,14 +37,13 @@ public final class Channel: Model {
   @OptionalField(key: "image")
   var imageURL: String?
 
-  @Field(key: "published_at")
-  var publishedAt: Date
+  @OptionalField(key: "published_at")
+  var publishedAt: Date?
 
-  // When this Planet was created.
   @Timestamp(key: "created_at", on: .create)
   var createdAt: Date?
 
-  // When this Planet was last updated.
+  
   @Timestamp(key: "updated_at", on: .update)
   var updatedAt: Date?
 
@@ -62,6 +62,20 @@ extension Channel: Validatable {
     validations.add("siteUrl", as: URL.self)
     validations.add("feedUrl", as: URL.self)
     validations.add("imageURL", as: URL.self)
+  }
+}
+
+extension Channel {
+  public convenience init(fromBlogSite site: BlogSite) {
+    self.init()
+    self.$category.id = site.category
+    self.$language.id = site.language
+    self.feedUrl = site.feedURL.absoluteString
+    self.siteUrl = site.siteURL.absoluteString
+    self.twitterHandle = site.twitterURL?.lastPathComponent
+    self.title = site.title
+    self.author = site.author
+    
   }
 }
 

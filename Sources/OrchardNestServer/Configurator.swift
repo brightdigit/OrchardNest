@@ -19,6 +19,7 @@ public final class Configurator: ConfiguratorProtocol {
   //
   ///// Called before your application initializes.
   public func configure(_ app: Application) throws {
+    app.commands.use(RefreshCommand(help: "Imports data into the database"), as: "refresh")
     let html = HTMLController(markdownDirectory: app.directory.viewsDirectory)
     app.middleware = .init()
     app.middleware.use(ErrorPageMiddleware(htmlController: html))
@@ -48,6 +49,12 @@ public final class Configurator: ConfiguratorProtocol {
       LatestEntriesMigration(),
       JobModelMigrate(schema: "queue_jobs")
     ])
+    
+    try app.autoMigrate().wait()
+    
+    if CommandLine.arguments.contains("refresh") {
+     return
+    }
 
     app.queues.configuration.refreshInterval = .seconds(25)
     app.queues.use(.fluent())
@@ -64,9 +71,9 @@ public final class Configurator: ConfiguratorProtocol {
         }
       }
     #endif
-    app.commands.use(RefreshCommand(help: "Imports data into the database"), as: "refresh")
 
-    try app.autoMigrate().wait()
+    
+    
 
     let api = app.grouped("api", "v1")
 
@@ -75,6 +82,7 @@ public final class Configurator: ConfiguratorProtocol {
     try api.grouped("channels").register(collection: ChannelController())
     try api.grouped("categories").register(collection: CategoryController())
 
+    
     app.post("jobs") { req in
       req.queue.dispatch(
         RefreshJob.self,

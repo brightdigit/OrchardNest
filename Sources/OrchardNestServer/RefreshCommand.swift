@@ -8,6 +8,6 @@ struct RefreshCommand: Command {
   func run(using context: CommandContext, signature _: RefreshConfiguration) throws {
     let process = RefreshProcess()
     let parameters = RefreshParameters(logger: context.application.logger, database: context.application.db, client: context.application.client)
-    try process.begin(using: parameters, on: context.application.db.eventLoop).wait()
+    return try process.importFeeds(withParameters: parameters, on: context.application.db.eventLoop).wait()
   }
 }
