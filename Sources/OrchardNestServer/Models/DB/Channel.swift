@@ -24,6 +24,9 @@ public final class Channel: Model {
 
   @Field(key: "author")
   var author: String
+  
+  @OptionalField(key: "email")
+  var email: String?
 
   @Field(key: "site_url")
   var siteUrl: String
