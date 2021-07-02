@@ -1,6 +1,6 @@
-//import Foundation
+// import Foundation
 //
-//public struct Site: Codable {
+// public struct Site: Codable {
 //  // swiftlint:disable identifier_name
 //  public let title: String
 //  public let author: String
@@ -23,4 +23,4 @@
 //  }
 //
 //  // swiftlint:enable identifier_name
-//}
+// }

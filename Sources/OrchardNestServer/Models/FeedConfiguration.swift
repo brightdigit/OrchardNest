@@ -1,12 +1,12 @@
-//import OrchardNestKit
+// import OrchardNestKit
 //
-//struct FeedConfiguration {
+// struct FeedConfiguration {
 //  let categorySlug: String
 //  let languageCode: String
 //  let channel: FeedChannel
-//}
+// }
 //
-//extension FeedConfiguration {
+// extension FeedConfiguration {
 //  static func from(
 //    categorySlug: String,
 //    languageCode: String,
@@ -22,4 +22,4 @@
 //    }
 //    return .success(FeedConfiguration(categorySlug: newCatId, languageCode: newLangId, channel: channel))
 //  }
-//}
+// }

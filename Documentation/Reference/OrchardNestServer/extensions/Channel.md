@@ -11,3 +11,9 @@ extension Channel: Validatable
 ```swift
 public static func validations(_ validations: inout Validations)
 ```
+
+### `init(fromBlogSite:)`
+
+```swift
+convenience init(fromBlogSite site: BlogSite)
+```

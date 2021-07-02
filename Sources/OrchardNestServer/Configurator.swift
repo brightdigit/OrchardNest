@@ -49,17 +49,17 @@ public final class Configurator: ConfiguratorProtocol {
       LatestEntriesMigration(),
       JobModelMigrate(schema: "queue_jobs")
     ])
-    
+
     try app.autoMigrate().wait()
-    
+
     if CommandLine.arguments.contains("refresh") {
-     return
+      return
     }
 
     app.queues.configuration.refreshInterval = .seconds(25)
     app.queues.use(.fluent())
 
-    app.queues.add(RefreshJob())
+    app.queues.add(DirectoryJob())
     app.queues.schedule(RefreshScheduledJob()).daily().at(.midnight)
     app.queues.schedule(RefreshScheduledJob()).daily().at(7, 30)
     app.queues.schedule(RefreshScheduledJob()).daily().at(19, 30)
@@ -72,9 +72,6 @@ public final class Configurator: ConfiguratorProtocol {
       }
     #endif
 
-    
-    
-
     let api = app.grouped("api", "v1")
 
     try app.register(collection: html)
@@ -82,11 +79,10 @@ public final class Configurator: ConfiguratorProtocol {
     try api.grouped("channels").register(collection: ChannelController())
     try api.grouped("categories").register(collection: CategoryController())
 
-    
     app.post("jobs") { req in
       req.queue.dispatch(
-        RefreshJob.self,
-        RefreshConfiguration()
+        DirectoryJob.self,
+        DirectoryConfiguration()
       ).map { HTTPStatus.created }
     }
 

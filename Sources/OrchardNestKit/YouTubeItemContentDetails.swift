@@ -1,6 +1,6 @@
-//import Foundation
+// import Foundation
 //
-//public struct YouTubeItemContentDetails: Decodable {
+// public struct YouTubeItemContentDetails: Decodable {
 //  public let duration: TimeInterval
 //
 //  enum CodingKeys: String, CodingKey {
@@ -12,4 +12,4 @@
 //    let durationString = try container.decode(String.self, forKey: .duration)
 //    duration = try TimeInterval(iso8601: durationString)
 //  }
-//}
+// }

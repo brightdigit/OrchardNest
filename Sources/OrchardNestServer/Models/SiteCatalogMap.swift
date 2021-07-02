@@ -1,7 +1,7 @@
-//import OrchardNestKit
-//import SyndiKit
+// import OrchardNestKit
+// import SyndiKit
 //
-//struct SiteCatalogMap {
+// struct SiteCatalogMap {
 //  let languages: [String: String]
 //  let categories: [String: [String: String]]
 //  let organizedSites: [OrganizedSite]
@@ -27,4 +27,4 @@
 //    self.languages = languages
 //    self.organizedSites = organizedSites
 //  }
-//}
+// }

@@ -1,7 +1,7 @@
-//import Foundation
-//import OrchardNestKit
+// import Foundation
+// import OrchardNestKit
 //
-//struct FeedItemConfiguration {
+// struct FeedItemConfiguration {
 //  let channelId: UUID
 //  let feedItem: FeedItem
-//}
+// }

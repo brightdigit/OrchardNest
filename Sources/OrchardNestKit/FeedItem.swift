@@ -1,6 +1,6 @@
-//import Foundation
+// import Foundation
 //
-//public struct FeedItem: Codable {
+// public struct FeedItem: Codable {
 //  public let siteUrl: URL
 //  public let id: String
 //  public let title: String
@@ -12,4 +12,4 @@
 //  public let audio: URL?
 //  public let duration: TimeInterval?
 //  public let published: Date
-//}
+// }

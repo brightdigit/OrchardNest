@@ -12,6 +12,12 @@ final class CategoryTitle: Model {
     $language.id = try language.requireID()
   }
 
+  init(languageCode: Language.IDValue, categorySlug: Category.IDValue, title: String, description _: String) {
+    $category.id = categorySlug
+    $language.id = languageCode
+    self.title = title
+  }
+
   @ID()
   var id: UUID?
 
@@ -23,4 +29,7 @@ final class CategoryTitle: Model {
 
   @Field(key: "title")
   var title: String
+
+  @Field(key: "description")
+  var description: String
 }

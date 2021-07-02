@@ -1,6 +1,6 @@
-//import OrchardNestKit
+// import OrchardNestKit
 //
-//struct ChannelFeedItemsConfiguration {
+// struct ChannelFeedItemsConfiguration {
 //  let channel: Channel
 //  let youtubeId: String?
 //  let items: [FeedItem]
@@ -28,9 +28,9 @@
 //    items = feedArgs.channel.items
 //    youtubeId = feedArgs.channel.ytId
 //  }
-//}
+// }
 //
-//extension ChannelFeedItemsConfiguration {
+// extension ChannelFeedItemsConfiguration {
 //  func feedItems() throws -> [FeedItemConfiguration] {
 //    let channelId = try channel.requireID()
 //    return items.map { FeedItemConfiguration(channelId: channelId, feedItem: $0) }
@@ -42,12 +42,12 @@
 //    }
 //    return YouTubeChannel(channelId: id, youtubeId: youtubeId)
 //  }
-//  
+//
 //  var isNew : Bool {
 //    self.channel.createdAt == nil
 //  }
-//  
+//
 //  var hasChanges : Bool {
 //    self.channel.hasChanges
 //  }
-//}
+// }

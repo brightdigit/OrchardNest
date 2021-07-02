@@ -1,6 +1,6 @@
-//import Foundation
+// import Foundation
 //
-//extension TimeInterval {
+// extension TimeInterval {
 //  static let second = 1.0
 //  static let minute = 60 * TimeInterval.second
 //  static let hour = 60 * TimeInterval.minute
@@ -8,9 +8,9 @@
 //  static let week = 7 * TimeInterval.day
 //  static let month = 30 * TimeInterval.day
 //  static let year = 365.25 * TimeInterval.day
-//}
+// }
 //
-//extension TimeInterval {
+// extension TimeInterval {
 //  // swiftlint:disable:next cyclomatic_complexity
 //  init(iso8601: String) throws {
 //    let value = iso8601
@@ -87,4 +87,4 @@
 //    }
 //    self = timeInterval
 //  }
-//}
+// }

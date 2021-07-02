@@ -1,6 +1,6 @@
-//import Foundation
+// import Foundation
 //
-//enum Component {
+// enum Component {
 //  case second
 //  case minute
 //  case hour
@@ -84,4 +84,4 @@
 //    }
 //    return output
 //  }
-//}
+// }

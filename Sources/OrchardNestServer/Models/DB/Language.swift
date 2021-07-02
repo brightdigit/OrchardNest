@@ -1,6 +1,6 @@
 import Fluent
-import Vapor
 import SyndiKit
+import Vapor
 
 final class Language: Model {
   static var schema = "languages"
@@ -20,8 +20,8 @@ final class Language: Model {
 }
 
 extension Language {
-  static func from(_ language: SyndiKit.Language, on database: Database)-> EventLoopFuture<Language> {
-    Language.find(language.type, on: database).flatMap{ languageDB in
+  static func from(_ language: SyndiKit.Language, on database: Database) -> EventLoopFuture<Language> {
+    Language.find(language.type, on: database).flatMap { languageDB in
       let updatedLangDB: Language
       if let languageDB = languageDB {
         languageDB.title = language.title

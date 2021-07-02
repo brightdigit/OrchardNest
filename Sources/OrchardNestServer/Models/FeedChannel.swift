@@ -7,7 +7,7 @@ import Vapor
 
 struct EmptyError: Error {}
 //
-//extension FeedChannel {
+// extension FeedChannel {
 //  static func parseSite(_ site: OrganizedSite, using client: Client, on eventLoop: EventLoop) -> EventLoopFuture<Result<FeedChannel, FeedError>> {
 //    return client.get(URI(string: site.site.feed_url.absoluteString)).map { response -> Data? in
 //      response.body.map { buffer in
@@ -32,4 +32,4 @@ struct EmptyError: Error {}
 //      return eventLoop.future(newResult)
 //    }
 //  }
-//}
+// }

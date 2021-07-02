@@ -1,6 +1,6 @@
-//import Foundation
+// import Foundation
 //
-//struct ComponentDuration {
+// struct ComponentDuration {
 //  let duration: Int
 //  let component: Calendar.Component
-//}
+// }

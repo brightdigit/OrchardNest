@@ -8,6 +8,7 @@ struct CategoryTitleMigration: Migration {
       .field("code", .string, .references(Language.schema, "code"))
       .field("slug", .string, .references(Category.schema, "slug"))
       .field("title", .string, .required)
+      .field("description", .string, .required)
       .unique(on: "code", "slug")
       .create()
   }

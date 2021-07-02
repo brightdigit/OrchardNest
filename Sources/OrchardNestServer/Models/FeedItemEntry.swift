@@ -1,8 +1,8 @@
-//import Fluent
-//import OrchardNestKit
-//import Vapor
+// import Fluent
+// import OrchardNestKit
+// import Vapor
 //
-//struct FeedItemEntry {
+// struct FeedItemEntry {
 //  let entry: Entry
 //  let feedItem: FeedItem
 //
@@ -26,13 +26,13 @@
 //      return newEntry.save(on: database).transform(to: Self(entry: newEntry, feedItem: config.feedItem))
 //    }
 //  }
-//}
+// }
 //
-//extension FeedItemEntry {
+// extension FeedItemEntry {
 //  var podcastEpisode: PodcastEpisode? {
 //    guard let id = entry.id, let audioURL = feedItem.audio, let duration = feedItem.duration else {
 //      return nil
 //    }
 //    return PodcastEpisode(entryId: id, audioURL: audioURL.absoluteString, seconds: Int(duration.rounded()))
 //  }
-//}
+// }

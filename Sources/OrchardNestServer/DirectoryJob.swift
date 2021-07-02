@@ -2,8 +2,8 @@ import Fluent
 import NIO
 import OrchardNestKit
 import Queues
-import Vapor
 import SyndiKit
+import Vapor
 extension Collection {
   func chunked(by distance: Int) -> [[Element]] {
     var result: [[Element]] = []
@@ -37,26 +37,23 @@ struct ApplePodcastResponse: Codable {
 struct RefreshScheduledJob: ScheduledJob {
   func run(context: QueueContext) -> EventLoopFuture<Void> {
     context.queue.dispatch(
-      RefreshJob.self,
-      RefreshConfiguration()
+      DirectoryJob.self,
+      DirectoryConfiguration()
     )
   }
 }
 
-struct RefreshJob: Job {
- 
-  typealias Payload = RefreshConfiguration
+struct DirectoryJob: Job {
+  typealias Payload = DirectoryConfiguration
 
-  func error(_ context: QueueContext, _ error: Error, _: RefreshConfiguration) -> EventLoopFuture<Void> {
+  func error(_ context: QueueContext, _ error: Error, _: DirectoryConfiguration) -> EventLoopFuture<Void> {
     context.logger.report(error: error)
     return context.eventLoop.future()
   }
-  
 
-  
-  func dequeue(_ context: QueueContext, _: RefreshConfiguration) -> EventLoopFuture<Void> {
+  func dequeue(_ context: QueueContext, _: DirectoryConfiguration) -> EventLoopFuture<Void> {
     let process = RefreshProcess()
-    
+
     return process.importFeeds(withParameters: RefreshParameters(logger: context.logger, database: context.application.db, client: context.application.client), on: context.eventLoop)
   }
 }
@@ -68,11 +65,11 @@ class RefreshParameters {
     self.client = client
     self.decoder = decoder
   }
-  
-  let logger : Logger
-  let database : Database
-  let client : Client
-  let decoder : JSONDecoder
+
+  let logger: Logger
+  let database: Database
+  let client: Client
+  let decoder: JSONDecoder
 }
 
 struct RefreshProcess {
@@ -133,12 +130,12 @@ struct RefreshProcess {
 //    let categories : [Category]
 //    let organizedSites : [OrganizedSite]
 //  }
-  
+
 //  func download (basedOn response: FeedResultResponse, using client: Client, on eventLoop: EventLoop, with logger: Logger) -> EventLoopFuture<[FeedResult]> {
 //    //let futureFeedResults: EventLoopFuture<[FeedResult]>
 //    let langMap = Language.dictionary(from: response.languages)
 //    let catMap = Category.dictionary(from: response.categories)
-////    futureFeedResults = langMap.and(catMap).flatMap { maps -> EventLoopFuture<[FeedResult]> in
+  ////    futureFeedResults = langMap.and(catMap).flatMap { maps -> EventLoopFuture<[FeedResult]> in
 //     logger.info("downloading feeds...")
 //
 //      var results = [EventLoopFuture<FeedResult>]()
@@ -175,7 +172,7 @@ struct RefreshProcess {
 //      return finalResults
 //
 //  }
-  
+
   fileprivate func getAllIgnoredURLs(_ database: Database) -> EventLoopFuture<[URL]> {
     return ChannelStatus.query(on: database)
       .filter(\.$status == ChannelStatusType.ignore)
@@ -183,47 +180,68 @@ struct RefreshProcess {
       .all()
       .map { $0.compactMap { $0.id.flatMap(URL.init(string:)) }}
   }
-  
-  func upsertBlogCollection (_ blogsDownload: BlogCollection, to database: Database, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+
+  func upsertBlogCollection(_ blogsDownload: BlogCollection, to database: Database, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
     let ignoringFeedURLs =
       getAllIgnoredURLs(database)
-    
-    
-    
-    let futureLanguages = blogsDownload.languages().map{
+
+    let futureLanguages = blogsDownload.languages().map {
       Language.from($0, on: database)
     }.flatten(on: eventLoop)
-    
+
     let futureCategories = blogsDownload.categories()
-    .map {
-      Category.from($0.type, on: database)
-    }.flatten(on: eventLoop)
-    
-    let languageAndCats = futureCategories.and(futureLanguages)
-    
+      .map {
+        Category.from($0.type, on: database)
+      }.flatten(on: eventLoop)
+
+    let languageTitles = futureCategories.and(futureLanguages).transform(to: ()).flatMap {
+      CategoryTitle.query(on: database).all()
+    }.map { titles -> [String: [String: CategoryTitle]] in
+      Dictionary(grouping: titles, by: { $0.$language.id }).mapValues { titles in
+        Dictionary(grouping: titles, by: { $0.$category.id }).compactMapValues { $0.first }
+      }
+    }.flatMap { (titles: [String: [String: CategoryTitle]]) -> EventLoopFuture<Void> in
+
+      blogsDownload.categories().flatMap { category in
+
+        category.descriptors.map { descriptor in
+          let updatedTitle: CategoryTitle
+          if let entry = titles[descriptor.key]?[category.type] {
+            entry.title = descriptor.value.title
+            updatedTitle = entry
+          } else {
+            updatedTitle = CategoryTitle(languageCode: descriptor.key, categorySlug: category.type, title: descriptor.value.title, description: descriptor.value.description)
+          }
+          return updatedTitle.save(on: database)
+        }
+      }.flatten(on: eventLoop)
+    }
+
     let deletedChannels = ignoringFeedURLs.flatMap { ignoringFeedURLs in
       Channel.query(on: database).filter(\.$feedUrl ~~ ignoringFeedURLs.map { $0.absoluteString }).delete()
-    }.flatMap{
-      languageAndCats.transform(to: ())
+    }.flatMap {
+      languageTitles.transform(to: ())
     }
-    
-    let sites = ignoringFeedURLs.map{ urls in
-      blogsDownload.sites().filter{!urls.contains($0.feedURL)}
+
+    let sites = ignoringFeedURLs.map { urls in
+      blogsDownload.sites().filter { !urls.contains($0.feedURL) }
+    }.map {
+      Dictionary(grouping: $0, by: { $0.feedURL }).compactMap { $0.value.first }
     }
-    
-    let existingFeedURLs = sites.mapEach{
+
+    let existingFeedURLs = sites.mapEach {
       $0.feedURL.absoluteString
     }
-    
-    let existingChannelsURLDictionary = existingFeedURLs.flatMap{ urls in
-      
+
+    let existingChannelsURLDictionary = existingFeedURLs.flatMap { urls in
+
       Channel.query(on: database).filter(\.$feedUrl ~~ urls).all()
-    }.mapEach{ ($0.feedUrl, $0) }.map(Dictionary.init(uniqueKeysWithValues:))
-    
+    }.mapEach { ($0.feedUrl, $0) }.map(Dictionary.init(uniqueKeysWithValues:))
+
     let updatedChannels = sites.and(existingChannelsURLDictionary).map { args -> [Channel] in
       let (sites, channelDictionary) = args
       return sites.map { site in
-        let channel : Channel
+        let channel: Channel
         if let foundChannel = channelDictionary[site.feedURL.absoluteString] {
           channel = foundChannel
         } else {
@@ -235,26 +253,23 @@ struct RefreshProcess {
         channel.twitterHandle = site.twitterURL?.lastPathComponent
         return channel
       }
-    }.flatMapEach(on: eventLoop, {$0.save(on: database).transform(to: $0)})
-    
+    }.flatMapEach(on: eventLoop) { $0.save(on: database).transform(to: $0) }
+
     return deletedChannels.and(updatedChannels).transform(to: ())
   }
-  
-  func importFeeds (withParameters parameters: RefreshParameters, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+
+  func importFeeds(withParameters parameters: RefreshParameters, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
     let blogsDownload = parameters.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> BlogArray in
       try response.content.decode(BlogArray.self, using: parameters.decoder)
     }.map(BlogCollection.init)
-    
+
     return parameters.database.transaction { database in
-      blogsDownload.flatMap{
+      blogsDownload.flatMap {
         upsertBlogCollection($0, to: database, on: eventLoop)
       }
-     
     }
-    
-    
   }
-  
+
   // swiftlint:disable:next function_body_length
 //  func begin(using parameters: RefreshParameters, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
 //    parameters.logger.info("downloading blog list...")
@@ -264,9 +279,9 @@ struct RefreshProcess {
 //      let languages = siteCatalogMap.languages()
 //      let categories = siteCatalogMap.categories()
 //
-////      let organizedSites = siteCatalogMap.organizedSites.filter {
-////        !ignoringFeedURLs.contains($0.site.feedURL)
-////      }
+  ////      let organizedSites = siteCatalogMap.organizedSites.filter {
+  ////        !ignoringFeedURLs.contains($0.site.feedURL)
+  ////      }
 //
 //      let channelCleanup = Channel.query(on: parameters.database).filter(\.$feedUrl ~~ ignoringFeedURLs.map { $0.absoluteString }).delete()
 //
@@ -475,5 +490,5 @@ struct RefreshProcess {
 //        return futYTVideos.and(futYTChannels).and(futPodEpisodes).and(podcastChannels).and(channelCleanup).transform(to: ())
 //      }
 //    }
-  //}
+  // }
 }

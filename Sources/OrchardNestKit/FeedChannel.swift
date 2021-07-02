@@ -1,7 +1,7 @@
-//import FeedKit
-//import Foundation
+// import FeedKit
+// import Foundation
 //
-//public struct FeedChannel: Codable {
+// public struct FeedChannel: Codable {
 //  static let youtubeImgBaseURL = URL(string: "https://img.youtube.com/vi/")!
 //  public static func imageURL(fromYoutubeId ytId: String) -> URL {
 //    return youtubeImgBaseURL.appendingPathComponent(ytId).appendingPathComponent("hqdefault.jpg")
@@ -191,4 +191,4 @@
 //      } ?? [FeedItem]()
 //    }
 //  }
-//}
+// }

@@ -1,7 +1,7 @@
-//import FeedKit
-//import Foundation
+// import FeedKit
+// import Foundation
 //
-//public struct Enclosure {
+// public struct Enclosure {
 //  let url: URL
 //  let type: String
 //
@@ -46,4 +46,4 @@
 //
 //    return url
 //  }
-//}
+// }
