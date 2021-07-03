@@ -3,9 +3,22 @@ import OrchardNestKit
 import Vapor
 
 public final class Entry: Model, Content {
+  
   public static var schema = "entries"
 
-  public init() {}
+  public init(feedId: String, title: String, summary: String, content: String?, url: String, imageURL: String?, publishedAt: Date) {
+    self.feedId = feedId
+    self.title = title
+    self.summary = summary
+    self.content = content
+    self.url = url
+    self.imageURL = imageURL
+    self.publishedAt = publishedAt
+  }
+  
+  public init() {
+    
+  }
 
   @ID()
   public var id: UUID?

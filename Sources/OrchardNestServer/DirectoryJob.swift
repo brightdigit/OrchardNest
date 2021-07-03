@@ -54,7 +54,12 @@ struct DirectoryJob: Job {
   func dequeue(_ context: QueueContext, _: DirectoryConfiguration) -> EventLoopFuture<Void> {
     let process = RefreshProcess()
 
-    return process.importFeeds(withParameters: RefreshParameters(logger: context.logger, database: context.application.db, client: context.application.client), on: context.eventLoop)
+    return process.importFeeds(withParameters: RefreshParameters(logger: context.logger, database: context.application.db, client: context.application.client), on: context.eventLoop).flatMap{
+      context.queue.dispatch(
+        FeedJob.self,
+        FeedSyncConfiguration()
+      )
+    }
   }
 }
 
