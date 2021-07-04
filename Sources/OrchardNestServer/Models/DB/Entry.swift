@@ -3,10 +3,10 @@ import OrchardNestKit
 import Vapor
 
 public final class Entry: Model, Content {
-  
   public static var schema = "entries"
 
-  public init(feedId: String, title: String, summary: String, content: String?, url: String, imageURL: String?, publishedAt: Date) {
+  public init(channelId: UUID, feedId: String, title: String, summary: String, content: String?, url: String, imageURL: String?, publishedAt: Date) {
+    $channel.id = channelId
     self.feedId = feedId
     self.title = title
     self.summary = summary
@@ -15,10 +15,8 @@ public final class Entry: Model, Content {
     self.imageURL = imageURL
     self.publishedAt = publishedAt
   }
-  
-  public init() {
-    
-  }
+
+  public init() {}
 
   @ID()
   public var id: UUID?

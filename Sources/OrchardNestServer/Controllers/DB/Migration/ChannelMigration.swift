@@ -10,6 +10,7 @@ struct ChannelMigration: Migration {
       .field("title", .string, .required)
       .field("subtitle", .string)
       .field("author", .string, .required)
+      .field("email", .string)
       .field("site_url", .string, .required)
       .field("feed_url", .string, .required)
       .field("twitter_handle", .string)

@@ -30,6 +30,6 @@ final class CategoryTitle: Model {
   @Field(key: "title")
   var title: String
 
-  @Field(key: "description")
-  var description: String
+  @OptionalField(key: "description")
+  var description: String?
 }

@@ -60,6 +60,7 @@ public final class Configurator: ConfiguratorProtocol {
     app.queues.use(.fluent())
 
     app.queues.add(DirectoryJob())
+    app.queues.add(FeedJob())
     app.queues.schedule(RefreshScheduledJob()).daily().at(.midnight)
     app.queues.schedule(RefreshScheduledJob()).daily().at(7, 30)
     app.queues.schedule(RefreshScheduledJob()).daily().at(19, 30)

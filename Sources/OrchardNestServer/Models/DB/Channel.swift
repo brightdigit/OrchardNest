@@ -24,7 +24,7 @@ public final class Channel: Model {
 
   @Field(key: "author")
   var author: String
-  
+
   @OptionalField(key: "email")
   var email: String?
 
@@ -40,7 +40,7 @@ public final class Channel: Model {
   @OptionalField(key: "image")
   var imageURL: String?
 
-  @OptionalField(key: "md5hash")
+  @OptionalField(key: "md5")
   var md5: Data?
 
   @OptionalField(key: "published_at")
