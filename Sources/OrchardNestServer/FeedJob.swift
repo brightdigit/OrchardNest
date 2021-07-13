@@ -4,22 +4,73 @@ import Foundation
 import Queues
 import SyndiKit
 import Vapor
+import FluentKit
+import NIO
+import FluentPostgresDriver
+
 struct FeedSyncConfiguration: Codable {}
 
-enum FeedResult {
-  case empty
-  case error
-  case download(FeedDownload)
+extension Database {
+  func create<EnumType: DatabaseEnum>(enum _: EnumType.Type) -> EventLoopFuture<DatabaseSchema.DataType> {
+    var enumSchema = self.enum(EnumType.schema)
+    for caseName in EnumType.allCases {
+      enumSchema = enumSchema.case(EnumType.rawValue(caseName))
+    }
 
-  init(_: Result<(Data?, (Data?, Feedable?)), Error>) {
-    fatalError()
+    return enumSchema.create()
   }
 }
 
-struct FeedDownload {
-  let feed: Result<Feedable, DecodingError>
-  let md5: Data
+
+struct EnumMigration<EnumType: DatabaseEnum>: Migration {
+
+  
+  func prepare(on database: Database) -> EventLoopFuture<Void> {
+    
+    database.create(enum: EnumType.self).transform(to: ())
+  }
+
+  func revert(on database: Database) -> EventLoopFuture<Void> {
+    database.enum(EnumType.schema).delete()
+  }
+
+  var name: String {
+    String(reflecting: EnumType.self)
+  }
 }
+
+
+struct FeedResult {
+  internal init(result: Result<Feedable, Error>, md5: Data?) {
+    self.result = result
+    self.md5 = md5
+  }
+  
+  init (dataResult: Result<Data?, Error>, withDecoder decoder: RSSDecoder) {
+    if case let .failure(error) = dataResult {
+      self.init(result: .failure(error), md5: nil)
+      return
+    }
+    
+    guard case let .success(.some(data)) = dataResult else {
+      self.init(result: .failure(EmptyError()), md5: nil)
+      return
+    }
+    
+    let md5 = Data(Insecure.MD5.hash(data: data))
+    let result = Result{ try decoder.decode(data) }
+    
+    self.init(result: result, md5: md5)
+  }
+  
+  let result : Result<Feedable, Error>
+  let md5 : Data?
+}
+
+//struct FeedDownload {
+//  let feed: Result<Feedable, DecodingError>
+//  let md5: Data
+//}
 
 extension Entry {
   func importFields(from entry: Entryable) {
@@ -60,16 +111,19 @@ struct FeedJob: Job {
   let decoder = RSSDecoder()
   func downloadChannel(_ channel: Channel, withClient client: Client) -> EventLoopFuture<FeedResult> {
     let uri = URI(string: channel.feedUrl)
-    let data: EventLoopFuture<Data?> = client.get(uri)
+   return client.get(uri)
       .map { $0.body }
       .optionalMap(Data.init)
+      .flatMapAlways{
+        client.eventLoop.future(FeedResult(dataResult: $0, withDecoder: decoder))
+      }
 
-    let md5 = data.optionalMap(Insecure.MD5.hash).optionalMap { Data($0) }
-    let feed = data.optionalFlatMapThrowing { try decoder.decode($0) }
-
-    return data.and(md5.and(feed)).flatMapAlways { result in
-      client.eventLoop.future(FeedResult(result))
-    }
+//    let md5 = data.optionalMap(Insecure.MD5.hash).optionalMap { Data($0) }
+//    let feed = data.optionalFlatMapThrowing { try decoder.decode($0) }
+//
+//    return data.and(md5.and(feed)).map { <#(Data?, (Data?, Feedable?))#> in
+//      <#code#>
+//    }
   }
 
   func dequeue(_ context: QueueContext, _: FeedSyncConfiguration) -> EventLoopFuture<Void> {
@@ -89,8 +143,61 @@ struct FeedJob: Job {
           return context.eventLoop.makeFailedFuture(error)
         }
         let download = self.downloadChannel(channel, withClient: context.application.client)
-        return download.flatMap { (_: FeedResult) -> EventLoopFuture<Void> in
-          context.eventLoop.future(())
+        return download.flatMap { (result : FeedResult) -> EventLoopFuture<Void> in
+          let saveFuture : EventLoopFuture<Void>
+          if let md5 = result.md5 {
+            channel.md5 = md5
+            channel.publishedAt = Date()
+          }
+          switch result.result {
+          case .success(let feed):
+                      let feedIDs = feed.children.map { $0.id.description }
+            
+                      let currentEntriesF = channel.$entries
+                        .query(on: database)
+                        .filter(\.$feedId ~~ feedIDs)
+                        .all()
+                        .mapEach { ($0.feedId, $0) }
+                        .map(Dictionary.init(uniqueKeysWithValues:))
+            
+                      let entryUpdates = currentEntriesF.flatMap { currentEntries in
+                        feed.children.map { child -> EventLoopFuture<Void> in
+                          let entry: Entry?
+                          if let foundEntry = currentEntries[child.id.description] {
+                            foundEntry.importFields(from: child)
+                            entry = foundEntry
+                          } else {
+                            entry = Entry(from: child, channelId: channelId)
+                          }
+                          guard let entry = entry else {
+                            return context.eventLoop.future()
+                          }
+                          return entry.save(on: database)
+                        }.flatten(on: context.eventLoop)
+                      }
+            
+                      channel.author = feed.author?.name ?? channel.author
+                      channel.email = feed.author?.email
+                      channel.imageURL = feed.image?.absoluteString ?? channel.imageURL
+                      channel.subtitle = channel.subtitle ?? feed.summary
+            
+            saveFuture = entryUpdates
+          case .failure(let error):
+            let type : ChannelFailureType
+            
+            switch (result.md5, error is EmptyError) {
+            case (.none, true):
+              type = .missing
+            case (.none, false):
+              type = .download
+            case (.some, _):
+              type = .decoding
+            }
+            
+            let channelFailure = ChannelFailure(channelId: channelId, type: type, failure: error)
+            saveFuture = channelFailure.save(on: database)
+          }
+          return channel.update(on: database).and(saveFuture).transform(to: ())
 //          guard channel.md5 != download.md5 else {
 //            return context.eventLoop.future(())
 //          }

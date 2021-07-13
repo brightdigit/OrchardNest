@@ -36,6 +36,7 @@ public final class Configurator: ConfiguratorProtocol {
 
     app.databases.use(.postgres(configuration: postgreSQLConfig, maxConnectionsPerEventLoop: 8, connectionPoolTimeout: .seconds(60)), as: .psql)
     app.migrations.add([
+      EnumMigration<ChannelFailureType>(),
       CategoryMigration(),
       LanguageMigration(),
       CategoryTitleMigration(),
@@ -47,6 +48,7 @@ public final class Configurator: ConfiguratorProtocol {
       PodcastChannelMigration(),
       ChannelStatusMigration(),
       LatestEntriesMigration(),
+      ChannelFailureMigration(),
       JobModelMigrate(schema: "queue_jobs")
     ])
 
