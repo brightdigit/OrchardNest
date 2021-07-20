@@ -3,6 +3,7 @@
 ## Protocols
 
 -   [ConfiguratorProtocol](protocols/ConfiguratorProtocol.md)
+-   [DatabaseEnum](protocols/DatabaseEnum.md)
 
 ## Structs
 

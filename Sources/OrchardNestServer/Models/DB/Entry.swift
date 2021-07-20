@@ -30,9 +30,11 @@ public final class Entry: Model, Content {
   @Field(key: "title")
   var title: String
 
+  #warning("trim this")
   @Field(key: "summary")
   var summary: String
 
+  #warning("trim this")
   @OptionalField(key: "content")
   var content: String?
 

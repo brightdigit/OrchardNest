@@ -1,13 +1,13 @@
 import Crypto
 import Fluent
+import FluentKit
+import FluentPostgresDriver
 import Foundation
+import NIO
 import Queues
+import QueuesFluentDriver
 import SyndiKit
 import Vapor
-import FluentKit
-import NIO
-import FluentPostgresDriver
-import QueuesFluentDriver
 
 struct FeedSyncConfiguration: Codable {}
 
@@ -22,12 +22,8 @@ extension Database {
   }
 }
 
-
 struct EnumMigration<EnumType: DatabaseEnum>: Migration {
-
-  
   func prepare(on database: Database) -> EventLoopFuture<Void> {
-    
     database.create(enum: EnumType.self).transform(to: ())
   }
 
@@ -40,38 +36,37 @@ struct EnumMigration<EnumType: DatabaseEnum>: Migration {
   }
 }
 
-
 struct FeedResult {
   internal init(result: Result<Feedable, Error>, md5: Data?) {
     self.result = result
     self.md5 = md5
   }
-  
-  init (dataResult: Result<Data?, Error>, withDecoder decoder: RSSDecoder) {
+
+  init(dataResult: Result<Data?, Error>, withDecoder decoder: RSSDecoder) {
     if case let .failure(error) = dataResult {
       self.init(result: .failure(error), md5: nil)
       return
     }
-    
+
     guard case let .success(.some(data)) = dataResult else {
       self.init(result: .failure(EmptyError()), md5: nil)
       return
     }
-    
+
     let md5 = Data(Insecure.MD5.hash(data: data))
-    let result = Result{ try decoder.decode(data) }
-    
+    let result = Result { try decoder.decode(data) }
+
     self.init(result: result, md5: md5)
   }
-  
-  let result : Result<Feedable, Error>
-  let md5 : Data?
+
+  let result: Result<Feedable, Error>
+  let md5: Data?
 }
 
-//struct FeedDownload {
+// struct FeedDownload {
 //  let feed: Result<Feedable, DecodingError>
 //  let md5: Data
-//}
+// }
 
 extension Entry {
   func importFields(from entry: Entryable) {
@@ -104,7 +99,6 @@ extension QueueContext {
       return nil
     }
   }
-  
 }
 
 struct FeedJob: Job {
@@ -113,10 +107,9 @@ struct FeedJob: Job {
   let decoder = RSSDecoder()
   func downloadChannel(_ channel: Channel, withClient client: Client) -> EventLoopFuture<FeedResult> {
     let uri = URI(string: channel.feedUrl)
-   return client.get(uri)
-      .map { $0.body }
-      .optionalMap(Data.init)
-      .flatMapAlways{
+    return client.get(uri)
+      .map { return $0.body.map { Data(buffer: $0) } }
+      .flatMapAlways {
         client.eventLoop.future(FeedResult(dataResult: $0, withDecoder: decoder))
       }
 
@@ -129,8 +122,6 @@ struct FeedJob: Job {
   }
 
   func dequeue(_ context: QueueContext, _: FeedSyncConfiguration) -> EventLoopFuture<Void> {
-   
-    
     guard let jobID = context.jobID else {
       return context.eventLoop.future(error: EmptyError())
     }
@@ -150,48 +141,48 @@ struct FeedJob: Job {
           return context.eventLoop.makeFailedFuture(error)
         }
         let download = self.downloadChannel(channel, withClient: context.application.client)
-        return download.flatMap { (result : FeedResult) -> EventLoopFuture<Void> in
-          let saveFuture : EventLoopFuture<Void>
+        return download.flatMap { (result: FeedResult) -> EventLoopFuture<Void> in
+          let saveFuture: EventLoopFuture<Void>
           if let md5 = result.md5 {
             channel.md5 = md5
-            channel.publishedAt = Date()
           }
+          channel.publishedAt = Date()
           switch result.result {
-          case .success(let feed):
-                      let feedIDs = feed.children.map { $0.id.description }
-            
-                      let currentEntriesF = channel.$entries
-                        .query(on: database)
-                        .filter(\.$feedId ~~ feedIDs)
-                        .all()
-                        .mapEach { ($0.feedId, $0) }
-                        .map(Dictionary.init(uniqueKeysWithValues:))
-            
-                      let entryUpdates = currentEntriesF.flatMap { currentEntries in
-                        feed.children.map { child -> EventLoopFuture<Void> in
-                          let entry: Entry?
-                          if let foundEntry = currentEntries[child.id.description] {
-                            foundEntry.importFields(from: child)
-                            entry = foundEntry
-                          } else {
-                            entry = Entry(from: child, channelId: channelId)
-                          }
-                          guard let entry = entry else {
-                            return context.eventLoop.future()
-                          }
-                          return entry.save(on: database)
-                        }.flatten(on: context.eventLoop)
-                      }
-            
-                      channel.author = feed.author?.name ?? channel.author
-                      channel.email = feed.author?.email
-                      channel.imageURL = feed.image?.absoluteString ?? channel.imageURL
-                      channel.subtitle = channel.subtitle ?? feed.summary
-            
+          case let .success(feed):
+            let feedIDs = feed.children.map { $0.id.description }
+            #warning("what if not unique")
+            let currentEntriesF = channel.$entries
+              .query(on: database)
+              .filter(\.$feedId ~~ feedIDs)
+              .all()
+              .mapEach { ($0.feedId, $0) }
+              .map { Dictionary(grouping: $0, by: { $0.0 }).compactMapValues { $0.first?.1 }}
+
+            let entryUpdates = currentEntriesF.flatMap { currentEntries in
+              feed.children.map { child -> EventLoopFuture<Void> in
+                let entry: Entry?
+                if let foundEntry = currentEntries[child.id.description] {
+                  foundEntry.importFields(from: child)
+                  entry = foundEntry
+                } else {
+                  entry = Entry(from: child, channelId: channelId)
+                }
+                guard let entry = entry else {
+                  return context.eventLoop.future()
+                }
+                return entry.save(on: database)
+              }.flatten(on: context.eventLoop)
+            }
+
+            channel.author = feed.author?.name ?? channel.author
+            channel.email = feed.author?.email
+            channel.imageURL = feed.image?.absoluteString ?? channel.imageURL
+            channel.subtitle = channel.subtitle ?? feed.summary
+
             saveFuture = entryUpdates
-          case .failure(let error):
-            let type : ChannelFailureType
-            
+          case let .failure(error):
+            let type: ChannelFailureType
+
             switch (result.md5, error is EmptyError) {
             case (.none, true):
               type = .missing
@@ -200,7 +191,7 @@ struct FeedJob: Job {
             case (.some, _):
               type = .decoding
             }
-            
+
             let channelFailure = ChannelFailure(channelId: channelId, type: type, jobID: jobID, failure: error)
             saveFuture = channelFailure.save(on: database)
           }

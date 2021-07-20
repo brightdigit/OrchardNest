@@ -14,10 +14,8 @@ struct ChannelFailureMigration: Migration {
         .create()
     }
   }
-  
+
   func revert(on database: Database) -> EventLoopFuture<Void> {
     database.schema(ChannelFailure.schema).delete()
   }
-  
-  
 }
