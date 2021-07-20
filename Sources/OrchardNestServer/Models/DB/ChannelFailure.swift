@@ -2,6 +2,7 @@ import Fluent
 import Vapor
 
 import Foundation
+import QueuesFluentDriver
 public protocol DatabaseEnum: CaseIterable {
   static var schema: String { get }
   static func rawValue(_ case: Self) -> String
@@ -26,15 +27,21 @@ final class ChannelFailure: Model {
   
   static var schema = "channel_failures"
 
-  init(channelId: UUID, type: ChannelFailureType, failure: Error) {
-    self.id = channelId
+  init(channelId: UUID, type: ChannelFailureType, jobID: String, failure: Error) {
+    self.$channel.id = channelId
+    self.jobID = jobID
     self.type = type
     self.description = failure.localizedDescription
   }
-  
 
-  @ID(custom: "channel_id", generatedBy: .user)
-  var id: UUID?
+  @ID()
+  public var id: UUID?
+  
+  @Parent(key: "channel_id")
+  var channel: Channel
+  
+  @Field(key: "job_id")
+  var jobID: String
   
   @Enum(key: "type")
   var type: ChannelFailureType
@@ -45,8 +52,6 @@ final class ChannelFailure: Model {
   @Timestamp(key: "created_at", on: .create)
   var createdAt: Date?
 
-  @Parent(key: "channel_id")
-  var channel: Channel
 }
 
 

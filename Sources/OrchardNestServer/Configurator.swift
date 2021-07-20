@@ -48,8 +48,8 @@ public final class Configurator: ConfiguratorProtocol {
       PodcastChannelMigration(),
       ChannelStatusMigration(),
       LatestEntriesMigration(),
-      ChannelFailureMigration(),
-      JobModelMigrate(schema: "queue_jobs")
+      JobModelMigrate(schema: "queue_jobs"),
+      ChannelFailureMigration()
     ])
 
     try app.autoMigrate().wait()

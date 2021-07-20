@@ -7,6 +7,7 @@ import Vapor
 import FluentKit
 import NIO
 import FluentPostgresDriver
+import QueuesFluentDriver
 
 struct FeedSyncConfiguration: Codable {}
 
@@ -103,6 +104,7 @@ extension QueueContext {
       return nil
     }
   }
+  
 }
 
 struct FeedJob: Job {
@@ -127,6 +129,11 @@ struct FeedJob: Job {
   }
 
   func dequeue(_ context: QueueContext, _: FeedSyncConfiguration) -> EventLoopFuture<Void> {
+   
+    
+    guard let jobID = context.jobID else {
+      return context.eventLoop.future(error: EmptyError())
+    }
     return context.application.db.transaction { database in
       let updatingChannels = [
         Channel.query(on: database).filter(\.$publishedAt, .equality(inverse: false), nil).limit(80).all(),
@@ -194,7 +201,7 @@ struct FeedJob: Job {
               type = .decoding
             }
             
-            let channelFailure = ChannelFailure(channelId: channelId, type: type, failure: error)
+            let channelFailure = ChannelFailure(channelId: channelId, type: type, jobID: jobID, failure: error)
             saveFuture = channelFailure.save(on: database)
           }
           return channel.update(on: database).and(saveFuture).transform(to: ())
