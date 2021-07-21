@@ -9,6 +9,15 @@ import QueuesFluentDriver
 import SyndiKit
 import Vapor
 
+struct MediaJobConfiguration: Codable {
+  let channelIDs: [Channel.IDValue]
+}
+
+struct FeedSyncResponse {
+  let isCompleted: Bool
+  let mediaJobConfiguration: MediaJobConfiguration
+}
+
 struct FeedSyncConfiguration: Codable {}
 
 extension Database {
@@ -133,7 +142,7 @@ struct FeedJob: Job {
         $0.flatMap { $0 }.prefix(100)
       }
 
-      return updatingChannels.flatMapEach(on: context.eventLoop) { channel -> EventLoopFuture<Void> in
+      return updatingChannels.flatMapEachCompact(on: context.eventLoop) { channel -> EventLoopFuture<Channel.IDValue?> in
         let channelId: UUID
         do {
           channelId = try channel.requireID()
@@ -141,8 +150,9 @@ struct FeedJob: Job {
           return context.eventLoop.makeFailedFuture(error)
         }
         let download = self.downloadChannel(channel, withClient: context.application.client)
-        return download.flatMap { (result: FeedResult) -> EventLoopFuture<Void> in
+        return download.flatMap { (result: FeedResult) -> EventLoopFuture<Channel.IDValue?> in
           let saveFuture: EventLoopFuture<Void>
+          let isSuccess: Bool
           if let md5 = result.md5 {
             channel.md5 = md5
           }
@@ -150,6 +160,13 @@ struct FeedJob: Job {
           switch result.result {
           case let .success(feed):
             let feedIDs = feed.children.map { $0.id.description }
+
+            let youtubeSave: EventLoopFuture<Void>
+            if let youtubeChannelID = feed.youtubeChannelID {
+              youtubeSave = YouTubeChannel.upsert(YouTubeChannel(channelId: channelId, youtubeId: youtubeChannelID), on: database)
+            } else {
+              youtubeSave = context.eventLoop.future()
+            }
             #warning("what if not unique")
             let currentEntriesF = channel.$entries
               .query(on: database)
@@ -179,7 +196,8 @@ struct FeedJob: Job {
             channel.imageURL = feed.image?.absoluteString ?? channel.imageURL
             channel.subtitle = channel.subtitle ?? feed.summary
 
-            saveFuture = entryUpdates
+            saveFuture = entryUpdates.and(youtubeSave).transform(to: ())
+            isSuccess = true
           case let .failure(error):
             let type: ChannelFailureType
 
@@ -194,8 +212,9 @@ struct FeedJob: Job {
 
             let channelFailure = ChannelFailure(channelId: channelId, type: type, jobID: jobID, failure: error)
             saveFuture = channelFailure.save(on: database)
+            isSuccess = false
           }
-          return channel.update(on: database).and(saveFuture).transform(to: ())
+          return channel.update(on: database).and(saveFuture).transform(to: isSuccess ? channelId : nil)
 //          guard channel.md5 != download.md5 else {
 //            return context.eventLoop.future(())
 //          }
@@ -235,18 +254,22 @@ struct FeedJob: Job {
 //          channel.publishedAt = Date()
 //          return entryUpdates.and(channel.update(on: database)).transform(to: ())
         }
-      }.flatMap { _ in
+      }.flatMap { channelIDs in
         Channel.query(on: context.application.db).group(.or) {
           $0.filter(\.$publishedAt == nil).filter(\.$publishedAt < Date(timeIntervalSinceNow: 60 * 60 * 3))
-        }.count().map { $0 > 0 }
-      }.flatMap { dequeue in
-        guard dequeue else {
-          return context.eventLoop.future(())
+        }.count().map { $0 <= 0 }.map {
+          FeedSyncResponse(isCompleted: $0, mediaJobConfiguration: MediaJobConfiguration(channelIDs: channelIDs))
         }
-        return context.queue.dispatch(
-          FeedJob.self,
-          FeedSyncConfiguration()
-        )
+      }.flatMap { response in
+        var dispatchedJobs = [EventLoopFuture<Void>]()
+        if !response.isCompleted {
+          dispatchedJobs.append(context.queue.dispatch(
+            FeedJob.self,
+            FeedSyncConfiguration()
+          ))
+        }
+
+        return dispatchedJobs.flatten(on: context.eventLoop)
       }
     }
   }
