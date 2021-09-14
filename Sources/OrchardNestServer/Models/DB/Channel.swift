@@ -71,7 +71,7 @@ extension Channel: Validatable {
 }
 
 public extension Channel {
-  convenience init(fromBlogSite site: BlogSite) {
+  convenience init(fromBlogSite site: Site) {
     self.init()
     $category.id = site.category
     $language.id = site.language

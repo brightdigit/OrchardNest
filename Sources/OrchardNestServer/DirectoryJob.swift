@@ -78,6 +78,7 @@ class RefreshParameters {
 }
 
 struct RefreshProcess {
+  let builder = SiteCollectionDirectoryBuilder()
   static let youtubeAPIKey = Environment.get("YOUTUBE_API_KEY")!
 
   static let url = URL(string: "https://raw.githubusercontent.com/daveverwer/iOSDevDirectory/master/blogs.json")!
@@ -186,15 +187,15 @@ struct RefreshProcess {
       .map { $0.compactMap { $0.id.flatMap(URL.init(string:)) }}
   }
 
-  func upsertBlogCollection(_ blogsDownload: BlogCollection, to database: Database, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
+  func upsertBlogCollection(_ blogsDownload: SiteCollectionDirectory, to database: Database, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
     let ignoringFeedURLs =
       getAllIgnoredURLs(database)
 
-    let futureLanguages = blogsDownload.languages().map {
+    let futureLanguages = blogsDownload.languages.map {
       Language.from($0, on: database)
     }.flatten(on: eventLoop)
 
-    let futureCategories = blogsDownload.categories()
+    let futureCategories = blogsDownload.categories
       .map {
         Category.from($0.type, on: database)
       }.flatten(on: eventLoop)
@@ -207,7 +208,7 @@ struct RefreshProcess {
       }
     }.flatMap { (titles: [String: [String: CategoryTitle]]) -> EventLoopFuture<Void> in
 
-      blogsDownload.categories().flatMap { category in
+      blogsDownload.categories.flatMap { category in
 
         category.descriptors.map { descriptor in
           let updatedTitle: CategoryTitle
@@ -264,9 +265,10 @@ struct RefreshProcess {
   }
 
   func importFeeds(withParameters parameters: RefreshParameters, on eventLoop: EventLoop) -> EventLoopFuture<Void> {
-    let blogsDownload = parameters.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> BlogArray in
-      try response.content.decode(BlogArray.self, using: parameters.decoder)
-    }.map(BlogCollection.init)
+    
+    let blogsDownload = parameters.client.get(URI(string: Self.url.absoluteString)).flatMapThrowing { response -> SiteCollection in
+      try response.content.decode(SiteCollection.self, using: parameters.decoder)
+    }.map(builder.directory(fromCollection:))
 
     return parameters.database.transaction { database in
       blogsDownload.flatMap {

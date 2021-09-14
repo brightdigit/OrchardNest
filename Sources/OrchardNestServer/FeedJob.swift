@@ -51,7 +51,7 @@ struct FeedResult {
     self.md5 = md5
   }
 
-  init(dataResult: Result<Data?, Error>, withDecoder decoder: RSSDecoder) {
+  init(dataResult: Result<Data?, Error>, withDecoder decoder: SynDecoder) {
     if case let .failure(error) = dataResult {
       self.init(result: .failure(error), md5: nil)
       return
@@ -113,7 +113,7 @@ extension QueueContext {
 struct FeedJob: Job {
   typealias Payload = FeedSyncConfiguration
 
-  let decoder = RSSDecoder()
+  let decoder = SynDecoder()
   func downloadChannel(_ channel: Channel, withClient client: Client) -> EventLoopFuture<FeedResult> {
     let uri = URI(string: channel.feedUrl)
     return client.get(uri)
@@ -191,8 +191,13 @@ struct FeedJob: Job {
               }.flatten(on: context.eventLoop)
             }
 
-            channel.author = feed.author?.name ?? channel.author
-            channel.email = feed.author?.email
+            if let author = feed.authors.first {
+              channel.author = author.name
+              channel.email = author.email
+            } else {
+              channel.author = channel.author
+            }
+            
             channel.imageURL = feed.image?.absoluteString ?? channel.imageURL
             channel.subtitle = channel.subtitle ?? feed.summary
 

@@ -20,7 +20,7 @@ final class Language: Model {
 }
 
 extension Language {
-  static func from(_ language: SyndiKit.Language, on database: Database) -> EventLoopFuture<Language> {
+  static func from(_ language: SyndiKit.SiteLanguage, on database: Database) -> EventLoopFuture<Language> {
     Language.find(language.type, on: database).flatMap { languageDB in
       let updatedLangDB: Language
       if let languageDB = languageDB {
